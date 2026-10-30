@@ -5,7 +5,8 @@ services:
     name: yieldguard
     runtime: python
     plan: free
-    buildCommand: pip install -r backend/requirements.txt
+    # Installs the API, then builds the Next.js frontend to web/out (served by FastAPI).
+    buildCommand: pip install -r backend/requirements.txt && cd web && npm ci && npm run build
     startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
@@ -13,7 +14,9 @@ services:
         value: 3.12.8
       - key: GEMINI_API_KEY
         sync: false
-      - key: LLM_MODEL
+      - key: NODE_VERSION
+        value: 22.12.0
+      - key: GEMINI_MODEL
         value: gemini-3.5-flash-lite
       - key: LLM_FALLBACK_MODEL
         value: gemini-3.8-flash

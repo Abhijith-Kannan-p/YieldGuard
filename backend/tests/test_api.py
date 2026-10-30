@@ -188,3 +188,37 @@ def test_rules_endpoint_reflects_config():
 
 def test_health():
     assert client.get("/api/health").json()["status"] == "ok"
+
+
+def test_advice_alias_takes_question_param(live):
+    r = client.get("/advice", params={"location": "Dharwad", "question": "Can I spray today?", "lang": "en"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["language"] == "en" and body["location"]["name"] == "Dharwad"
+
+
+def test_advice_alias_unknown_location_is_json_error(live):
+    live["geocode"] = ok("geocode", [])
+    r = client.get("/advice", params={"location": "Atlantis", "question": "spray?"})
+    assert r.status_code == 404 and r.json()["error"]["code"] == "location_not_found"
+
+
+def test_advice_without_question_serves_page_not_json():
+    r = client.get("/advice")
+    assert r.headers["content-type"].startswith("text/html")
+
+
+def test_gemini_model_env_var(monkeypatch):
+    import importlib
+
+    from app import config
+
+    monkeypatch.setenv("GEMINI_MODEL", "gemini-test-model")
+    monkeypatch.setenv("LLM_MODEL", "gemini-old-name")
+    try:
+        assert importlib.reload(config).LLM_MODEL == "gemini-test-model"
+        monkeypatch.delenv("GEMINI_MODEL")
+        assert importlib.reload(config).LLM_MODEL == "gemini-old-name"
+    finally:
+        monkeypatch.undo()
+        importlib.reload(config)

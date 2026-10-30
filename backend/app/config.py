@@ -99,7 +99,8 @@ SOIL_PH_HIGH = 8.5
 # ---------------------------------------------------------------------------
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 # Flash-Lite is fast (~2 s) and less often overloaded on the free tier; Flash is the backup.
-LLM_MODEL = os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
+# GEMINI_MODEL is the documented name; LLM_MODEL is kept for older .env files.
+LLM_MODEL = os.getenv("GEMINI_MODEL") or os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
 if not LLM_MODEL.startswith("gemini"):  # ignore stale values such as an old Claude model name
     LLM_MODEL = "gemini-3.5-flash-lite"
 # Used once if the main model is rate-limited (free tier) or temporarily down.

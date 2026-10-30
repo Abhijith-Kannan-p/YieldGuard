@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config, llm
@@ -16,7 +16,8 @@ from .timeutil import iso, now_local
 logging.basicConfig(level=config.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("yieldguard")
 
-FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
+# Next.js static export (web/ -> `npm run build` -> web/out), served from this same app.
+FRONTEND_DIR = Path(__file__).resolve().parents[2] / "web" / "out"
 
 
 @asynccontextmanager
@@ -101,9 +102,37 @@ async def health():
             "llm_model": config.LLM_MODEL, "llm_fallback_model": config.LLM_FALLBACK_MODEL}
 
 
+@app.get("/advice", include_in_schema=False)
+async def advice_alias(
+    question: str | None = Query(None),
+    q: str | None = Query(None),
+    location: str | None = Query(None),
+    lat: float | None = Query(None, ge=-90, le=90),
+    lon: float | None = Query(None, ge=-180, le=180),
+    lang: str | None = Query("auto"),
+):
+    """GET /advice?location=...&question=...&lang=en|hi|kn returns JSON (same as /api/advice).
+    Without a question it serves the advice page, so /advice works in a browser too."""
+    if question is not None or q is not None:
+        return await advise(question or q or "", location=location, lat=lat, lon=lon, lang=lang)
+    page = FRONTEND_DIR / "advice" / "index.html"
+    if page.is_file():
+        return FileResponse(page)
+    return _no_frontend()
+
+
+def _no_frontend():
+    return HTMLResponse("<h1>YieldGuard API</h1><p>The web frontend is not built. Run <code>npm run build</code> "
+                        "in <code>web/</code>, or use <a href='/docs'>/docs</a>.</p>", status_code=503)
+
+
 if (FRONTEND_DIR / "index.html").is_file():
-    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+    # Mounted last so the /api routes above take precedence. html=True serves /advice/ -> advice/index.html
+    # and 404.html for unknown paths.
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="web")
+else:
+    log.warning("frontend build not found at %s - serving the API only", FRONTEND_DIR)
 
     @app.get("/", include_in_schema=False)
     async def index():
-        return FileResponse(FRONTEND_DIR / "index.html")
+        return _no_frontend()

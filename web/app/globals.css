@@ -1,0 +1,55 @@
+@import "tailwindcss";
+
+/* Sage Garden theme. Contrast ratios are against --background (#111111):
+   foreground 16.9:1, muted 7.8:1, primary 6.2:1, amber 5.9:1, red 5.0:1 (all pass WCAG AA). */
+:root {
+  --background: #111111;
+  --foreground: #f2f2f0;
+  --card: #1a1a1a;
+  --border: #2a2a2a;
+  --muted: #a3a8a4;
+  --primary: #7d9a86;
+  --primary-foreground: #111111; /* dark text on sage: 6.2:1 (white would be 3.1:1) */
+  --amber: #d97706;
+  --amber-soft: rgba(217, 119, 6, 0.12);
+  --destructive: #ef4444;
+  --destructive-soft: rgba(239, 68, 68, 0.12);
+  --rain: #6b9bd1;
+  --wind: #e5e7e3;
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-destructive: var(--destructive);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-rain: var(--rain);
+  --color-wind: var(--wind);
+  --radius-DEFAULT: var(--radius);
+  --radius-md: var(--radius);
+  --font-sans: system-ui, -apple-system, "Segoe UI", "Noto Sans", "Noto Sans Kannada", "Noto Sans Devanagari",
+    "Nirmala UI", sans-serif;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
