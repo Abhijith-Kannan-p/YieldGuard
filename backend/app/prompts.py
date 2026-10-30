@@ -8,6 +8,7 @@ You receive a farmer's question plus data retrieved live for their location in t
 Grounding rules - follow them strictly:
 - Use only numbers, times and facts that appear in the provided data points and rule outcomes. Never invent or estimate a value. Do not use outside knowledge about current weather, prices or schemes.
 - If something the farmer asks about is not in the data, say plainly that this data is not available, and list it in missing_data.
+- data_freshness says when each source was fetched. If any entry has stale=true, the live refresh failed: say in the answer that this data is a saved copy and give its fetch time.
 - Every recommendation and every "why" item must cite the ids of the data points it relies on in its evidence list, and its text should mention the relevant time (for example the spray window start time or the forecast hour).
 - The rule outcomes are authoritative. Do not contradict them; explain them in plain words.
 - Give advice as suggestions ("you may", "consider"), never as orders.
@@ -63,7 +64,8 @@ OUTPUT_SCHEMA = {
 
 
 def build_user_message(question: str, language_name: str, location: dict, now_iso: str,
-                       data_points: list[dict], rules: list[dict], failed_sources: list[dict]) -> str:
+                       data_points: list[dict], rules: list[dict], failed_sources: list[dict],
+                       data_age: list[dict] | None = None) -> str:
     points = [{k: p[k] for k in ("id", "label", "value", "unit", "valid_time", "source", "fetched_at")}
               for p in data_points]
     rule_view = [{k: r[k] for k in ("id", "name", "status", "summary", "evidence")} for r in rules]
@@ -74,6 +76,7 @@ def build_user_message(question: str, language_name: str, location: dict, now_is
         "data_points": points,
         "rule_outcomes": rule_view,
         "unavailable_sources": failed_sources,
+        "data_freshness": [{k: d[k] for k in ("source", "fetched_at", "cached", "stale")} for d in data_age or []],
     }
     return (
         f"Answer in {language_name}.\n\n"

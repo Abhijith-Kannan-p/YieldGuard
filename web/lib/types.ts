@@ -35,6 +35,8 @@ export interface SourceView {
   status: string;
   fetched_at: string | null;
   cached: boolean;
+  stale?: boolean; // live refresh failed; data is the last good response (fetched_at is its original time)
+  age_minutes?: number | null;
   error: string | null;
   attribution: string | null;
 }
@@ -92,6 +94,7 @@ export interface AdviceResponse {
   } | null;
   sources: SourceView[];
   warnings: string[];
+  data_age?: { source: string; fetched_at: string | null; age_minutes: number | null; cached: boolean; stale: boolean }[];
   attribution: string[];
 }
 

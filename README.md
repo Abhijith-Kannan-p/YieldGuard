@@ -38,12 +38,23 @@ flowchart LR
 ```
 
 1. **Resolve location** with Open-Meteo Geocoding, restricted to Karnataka (or use browser GPS coordinates).
-2. **Fetch in parallel**: the 72-hour forecast, month-to-date rainfall, a 26-year rainfall archive, and SoilGrids topsoil. Each call has an 8 s timeout and one retry (the large archive call gets 25 s). Responses are cached with their original fetch time.
+2. **Fetch in parallel**: the 72-hour forecast, month-to-date rainfall, the rainfall baseline (one small archive request per year, 2000 to last year, for the compared month only), and SoilGrids topsoil. Each call has an 8 s timeout and one retry. Responses are cached with their original fetch time.
 3. **Apply rules** from [`backend/app/config.py`](backend/app/config.py) (spray window, heavy rain, rainfall deficit, soil).
 4. **Build the evidence registry**: every number gets an id, label, value, unit, the time it refers to, its source and its fetch time.
 5. **Language model** (Google Gemini, `gemini-3.5-flash-lite`, retrying once on `gemini-3.8-flash` if it is rate-limited, overloaded or slow) gets only that evidence plus the rule outcomes and must return structured JSON whose recommendations cite evidence ids. Unknown ids are removed.
 6. **Grounding check**: every number in the answer is matched against the retrieved data. Any number that can't be matched is shown to the user as "check these numbers".
-7. **Failure handling**: if a source fails, the answer says which one and which parts are missing. If the language model fails, a deterministic rule-based answer is returned in the user's language.
+7. **Failure handling**: if a source fails, the answer says which one and which parts are missing. If a live refresh fails but an earlier good response for the same place is cached (forecast up to 12 h old, month-to-date rain up to 24 h), that response is used and clearly labelled "live refresh failed, showing data fetched at …". If the language model fails, a deterministic rule-based answer is returned in the user's language.
+
+### Open-Meteo rate limits
+
+Open-Meteo's free tier allows 600 calls per minute, 5,000 per hour and 10,000 per day **per IP address**, and weights each call by its length (about days ÷ 14). Hosting platforms such as Render share outbound IPs between apps, so other apps' traffic counts too. YieldGuard keeps its usage low:
+
+- **One forecast request per place**: the 72-hour forecast and this month's past daily rain come from one call (`past_days`). Cached for 60 minutes per location (coordinates rounded to 2 decimals).
+- **Rainfall baseline built once per district and month**: one small archive request per year (about 57 weighted calls instead of about 680 for a single 26-year request), cached for 30 days and saved to `backend/.cache/baseline.json` so a restart does not refetch it. On Render's free plan the disk is reset on each deploy or restart, so it is rebuilt once after that.
+- **One Open-Meteo call at a time**, and identical requests that arrive together share one call.
+- **HTTP 429 is never retried straight away.** No Open-Meteo call is sent for `Retry-After` seconds, or at least 60 s, and the last good data is shown instead, labelled with its fetch time.
+- **Every external call is logged** with provider, path, location, status and duration, for example `fetch open-meteo /v1/forecast latitude=15.46 longitude=75.01 past_days=30 -> 200 in 858 ms`; skipped calls are logged as `skip ... rate-limit backoff`.
+- The answer panel lists **how old each piece of data is** (live, cached, or saved copy), and the language model is told to say so when a saved copy is used.
 
 ### Project layout
 
@@ -81,7 +92,7 @@ render.yaml          deployment blueprint (no secrets)
 | Place → coordinates | [Open-Meteo Geocoding API](https://open-meteo.com/en/docs/geocoding-api) | Filtered to Karnataka, larger towns first |
 | 72-hour hourly forecast | [Open-Meteo Forecast API](https://open-meteo.com/en/docs) | `temperature_2m, relative_humidity_2m, precipitation_probability, precipitation, wind_speed_10m`, `timezone=Asia/Kolkata`, `forecast_days=3` |
 | Month-to-date rainfall | Open-Meteo Forecast API (`start_date`/`end_date`, `daily=precipitation_sum`) | Recent days without the archive's ~5-day lag |
-| Long-run rainfall baseline | [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api) | 2000 to last full year, same calendar dates; cached 7 days |
+| Long-run rainfall baseline | [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api) | 2000 to last full year, same calendar dates; one request per year for the compared month; cached 7 days |
 | Topsoil properties | [ISRIC SoilGrids v2.0](https://rest.isric.org/soilgrids/v2.0/docs) | `clay, sand, phh2o, soc`, `depth=0-5cm`, `value=mean`; cached 30 days |
 | Answer writing | [Google Gemini API](https://ai.google.dev/) | Uses only the data above. Free tier: prompts may be used by Google to improve its products, so only public weather/soil data and the question are sent. |
 | Voice questions (optional) | Google Gemini API (audio input) | Only when the farmer taps **Speak**. The recording is sent to Gemini for transcription and is not stored by YieldGuard. Same free-tier caveat as above. |

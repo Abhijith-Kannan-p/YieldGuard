@@ -83,14 +83,16 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     # --- fetch all live data in parallel ------------------------------------
     win_start, win_end = deficit_rule.window(now.date())
     y0, y1 = rainfall.baseline_years(now.date())
-    fc, mtd, base, soil_src = await asyncio.gather(
-        forecast.fetch(place["lat"], place["lon"]),
-        rainfall.fetch_month_to_date(place["lat"], place["lon"], win_start, win_end),
-        rainfall.fetch_baseline(place["lat"], place["lon"], y0, y1),
+    # One forecast request also returns this month's past daily rain (past_days).
+    fc, base, soil_src = await asyncio.gather(
+        forecast.fetch(place["lat"], place["lon"], past_from=win_start, today=now.date()),
+        rainfall.fetch_baseline(place, y0, y1, month=win_start.month),
         soil.fetch(place["lat"], place["lon"]),
     )
+    mtd = rainfall.month_to_date(fc)
     sources = [geo, fc, mtd, base, soil_src]
     failed = [{"id": s.source_id, "name": s.name, "error": s.error} for s in sources if not s.ok]
+    stale = [s for s in sources if s.ok and s.stale]
 
     # --- apply rules -------------------------------------------------------
     results = {
@@ -116,7 +118,7 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     generated_by = config.LLM_MODEL
     try:
         msg = prompts.build_user_message(question, config.SUPPORTED_LANGUAGES[lang], place, iso(now),
-                                         ev.points, ev.rules, failed)
+                                         ev.points, ev.rules, failed, _freshness(sources, now))
         raw, generated_by = await llm.generate(msg)
     except llm.LLMError as e:
         llm_error = str(e)
@@ -152,8 +154,11 @@ async def advise(question: str, location: str | None = None, lat: float | None =
         "rules": ev.rules,
         "spray_windows": (results["spray"] or {}).get("windows", []),
         "forecast_hourly": _series(fc, now),
-        "sources": [_source_view(s) for s in sources],
+        "sources": [_source_view(s, now) for s in sources],
+        "data_age": _freshness(sources, now),
         "warnings": [f"{f['name']} unavailable: {f['error']}" for f in failed]
+                    + [f"{s.name}: live refresh failed ({s.error}); showing data fetched {iso(s.fetched_at)}"
+                       for s in stale]
                     + ([f"Language model unavailable ({llm_error}); showing a rule-based summary."] if llm_error else []),
         "attribution": sorted(set(config.ATTRIBUTION.values())),
     }
@@ -167,7 +172,22 @@ def _series(fc: SourceResult, now) -> dict | None:
     return {"source": fc.name, "fetched_at": iso(fc.fetched_at), "units": fc.data.get("units", {}), "hours": hours}
 
 
-def _source_view(s: SourceResult) -> dict:
+def _age_minutes(s: SourceResult, now) -> int | None:
+    return max(0, round((now - s.fetched_at).total_seconds() / 60)) if s.fetched_at else None
+
+
+def _freshness(sources: list[SourceResult], now) -> list[dict]:
+    """How old each piece of data is, and whether it came from the cache or a saved copy."""
+    out = []
+    for s in sources:
+        if not s.ok or s.source_id == "user":
+            continue
+        out.append({"source": s.name, "fetched_at": iso(s.fetched_at) if s.fetched_at else None,
+                    "age_minutes": _age_minutes(s, now), "cached": s.cached, "stale": s.stale})
+    return out
+
+
+def _source_view(s: SourceResult, now) -> dict:
     return {
         "id": s.source_id,
         "name": s.name,
@@ -175,6 +195,8 @@ def _source_view(s: SourceResult) -> dict:
         "status": s.status,
         "fetched_at": iso(s.fetched_at) if s.fetched_at else None,
         "cached": s.cached,
+        "stale": s.stale,
+        "age_minutes": _age_minutes(s, now),
         "error": s.error,
         "attribution": SOURCE_ATTRIBUTION.get(s.source_id),
     }

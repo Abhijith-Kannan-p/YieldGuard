@@ -7,7 +7,7 @@ import MicButton from "./MicButton";
 import { PinIcon, SpeakerIcon } from "./Icons";
 import AttributionFooter from "./AttributionFooter";
 import { ApiError, fetchAdvice, REQUEST_TIMEOUT_MS, searchPlaces } from "@/lib/api";
-import { dataDate, fmtFetched, fmtSpan, fmtValue } from "@/lib/format";
+import { dataDate, fmtAge, fmtFetched, fmtSpan, fmtValue } from "@/lib/format";
 import { I18N, type Labels } from "@/lib/i18n";
 import type { AdviceResponse, CitedItem, DataPoint, Lang, PlaceSuggestion, Rule, SourceView } from "@/lib/types";
 import * as voice from "@/lib/voice";
@@ -348,6 +348,7 @@ export default function AdviceApp() {
 function Result({ res, L, onSpeak }: { res: AdviceResponse; L: Labels; onSpeak?: () => void }) {
   const points = useMemo(() => new Map(res.data_points.map((p) => [p.id, p])), [res.data_points]);
   const failed = res.sources.filter((s) => s.status !== "ok");
+  const stale = res.sources.filter((s) => s.status === "ok" && s.stale);
   const alerts = res.rules.filter((r) => WARN_STATUSES.has(r.status));
   const spray = res.rules.find((r) => r.id === "spray_window");
   const loc = res.location;
@@ -356,6 +357,19 @@ function Result({ res, L, onSpeak }: { res: AdviceResponse; L: Labels; onSpeak?:
     <>
       {failed.map((s) => (
         <SourceFailure key={s.id} s={s} L={L} />
+      ))}
+      {stale.map((s) => (
+        <div key={s.id} role="status" className="mb-3 rounded-md border border-amber bg-amber-soft p-3 text-sm">
+          <p>
+            <b className="text-amber">
+              {s.name}: {L.staleTitle}
+            </b>
+            {s.error ? ` (${s.error})` : ""}
+          </p>
+          <p className="mt-0.5">
+            {L.staleBody} {fmtFetched(s.fetched_at)}.
+          </p>
+        </div>
       ))}
 
       {alerts.length > 0 && (
@@ -431,6 +445,20 @@ function Result({ res, L, onSpeak }: { res: AdviceResponse; L: Labels; onSpeak?:
             {L.unverified} {res.unverified_numbers.join(", ")}
           </p>
         )}
+        {res.data_age && res.data_age.length > 0 && (
+          <div className="mt-4 text-sm">
+            <p className="font-semibold text-muted">{L.dataAge}</p>
+            <ul className="mt-1 space-y-0.5">
+              {res.data_age.map((d) => (
+                <li key={d.source} className={d.stale ? "text-amber" : "text-muted"}>
+                  {d.source}: {L.fetched} {fmtFetched(d.fetched_at)} ({fmtAge(d.age_minutes, L.ageUnits)}
+                  {" · "}
+                  {d.stale ? L.staleTag : d.cached ? L.cached : L.live})
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <p className="mt-4 rounded-md border border-primary/40 bg-primary/10 p-3 font-semibold">{res.answer.disclaimer}</p>
         <p className="mt-3 text-xs text-muted">
           {L.generatedBy}: {res.generated_by === "rules-fallback" ? L.fallbackNote : res.generated_by} ·{" "}
@@ -495,7 +523,9 @@ function Result({ res, L, onSpeak }: { res: AdviceResponse; L: Labels; onSpeak?:
           {res.sources.map((s) => (
             <li key={s.id} className="py-2 text-sm">
               <span
-                className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${s.status === "ok" ? "bg-primary" : "bg-destructive"}`}
+                className={`mr-2 inline-block h-2.5 w-2.5 rounded-full ${
+                  s.status !== "ok" ? "bg-destructive" : s.stale ? "bg-amber" : "bg-primary"
+                }`}
                 aria-hidden="true"
               />
               <b>{s.name}</b>
@@ -503,7 +533,8 @@ function Result({ res, L, onSpeak }: { res: AdviceResponse; L: Labels; onSpeak?:
                 <span className="text-muted">
                   {" "}
                   · {L.fetched} {fmtFetched(s.fetched_at)}
-                  {s.cached ? ` (${L.cached})` : ""}
+                  {s.stale ? ` (${L.staleTag})` : s.cached ? ` (${L.cached})` : ""}
+                  {s.stale && s.error && <span className="text-amber"> · {s.error}</span>}
                 </span>
               ) : (
                 <span className="text-destructive">

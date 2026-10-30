@@ -35,8 +35,9 @@ def live(monkeypatch):
     """Patch every source with saved real responses; tests override individual ones."""
     state = {
         "geocode": ok("geocode", [DHARWAD]),
-        "forecast": ok("forecast", parse_hourly(load_fixture("forecast_dharwad.json"))),
-        "rain_mtd": ok("rain_mtd", {"daily": parse_daily(load_fixture("mtd_dharwad_2026-10.json"))}),
+        # One forecast request returns both the hourly forecast and recent daily rain (past_days).
+        "forecast": ok("forecast", {**parse_hourly(load_fixture("forecast_dharwad.json")),
+                                    "daily": parse_daily(load_fixture("mtd_dharwad_2026-10.json"))}),
         "rain_baseline": ok("rain_baseline", {"daily": parse_daily(load_fixture("archive_dharwad_2000_2025.json"))}),
         "soil": ok("soil", {"properties": convert(load_fixture("soil_dharwad_nearby.json")),
                             "query_lat": 15.4801, "query_lon": 75.0078, "offset_km": 2.2}),
@@ -45,13 +46,10 @@ def live(monkeypatch):
     async def geo(q, count=10):
         return state["geocode"]
 
-    async def fc(lat, lon):
+    async def fc(lat, lon, past_from=None, today=None):
         return state["forecast"]
 
-    async def mtd(lat, lon, s, e):
-        return state["rain_mtd"]
-
-    async def base(lat, lon, y0, y1):
+    async def base(place, y0, y1, month=None):
         return state["rain_baseline"]
 
     async def soil(lat, lon):
@@ -59,7 +57,6 @@ def live(monkeypatch):
 
     monkeypatch.setattr(advisor.geocode, "search", geo)
     monkeypatch.setattr(advisor.forecast, "fetch", fc)
-    monkeypatch.setattr(advisor.rainfall, "fetch_month_to_date", mtd)
     monkeypatch.setattr(advisor.rainfall, "fetch_baseline", base)
     monkeypatch.setattr(advisor.soil, "fetch", soil)
     monkeypatch.setattr(advisor, "now_local", lambda: NOW)
@@ -111,7 +108,7 @@ def test_one_source_down_is_reported_not_crashed(live):
 
 
 def test_all_data_sources_down(live):
-    for k in ("forecast", "rain_mtd", "rain_baseline", "soil"):
+    for k in ("forecast", "rain_baseline", "soil"):
         live[k] = failed(k)
     r = get(q="Can I spray?")
     assert r.status_code == 200

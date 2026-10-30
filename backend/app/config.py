@@ -44,20 +44,42 @@ SOIL_TOTAL_BUDGET_S = 20.0  # stop probing nearby points after this long
 # Network behaviour
 # ---------------------------------------------------------------------------
 HTTP_TIMEOUT_S = 8.0          # per call, per the brief
-ARCHIVE_TIMEOUT_S = 25.0      # the 25-year baseline is one large request (~7 s typical)
-HTTP_RETRIES = 1              # retry once on timeout / 5xx / 429 / connection error
+HTTP_RETRIES = 1              # retry once on timeout / 5xx / connection error (never on 429)
 LLM_TIMEOUT_S = 20.0           # per attempt; a second attempt uses LLM_FALLBACK_MODEL
 LLM_RETRIES = 1
+
+# Open-Meteo's free tier is limited per IP address (600 calls/min, 5,000/h, 10,000/day) and
+# weights each call by its length (about days / 14). On shared hosting the IP is shared too.
+OPEN_METEO_MAX_CONCURRENT = 1   # Open-Meteo calls are sent one at a time
+OTHER_MAX_CONCURRENT = 4        # other providers (SoilGrids)
+RATE_LIMIT_BACKOFF_S = 60       # after HTTP 429: no call to that provider for at least this long...
+RATE_LIMIT_BACKOFF_MAX_S = 6 * 3600  # ...or Retry-After if longer, capped here
+# The rainfall baseline is one small archive request per year for the compared month only
+# (~57 weighted calls; a single 26-year request would weigh ~680).
+BASELINE_MIN_YEARS = 10       # fewer usable years than this -> baseline counts as failed
 
 # ---------------------------------------------------------------------------
 # Cache TTLs (seconds). Every cached item stores its original fetch time.
 # ---------------------------------------------------------------------------
-TTL_GEOCODE = 7 * 24 * 3600
-TTL_FORECAST = 3600
-TTL_MONTH_TO_DATE = 3600
-TTL_BASELINE = 7 * 24 * 3600
-TTL_SOIL = 30 * 24 * 3600
 CACHE_COORD_DECIMALS = 2      # cache key precision for lat/lon (~1 km)
+TTL_GEOCODE = 7 * 24 * 3600
+TTL_FORECAST = 60 * 60        # forecast + recent past rain (one request), per location
+TTL_BASELINE = 30 * 24 * 3600 # long-run rainfall normals, per district and month
+TTL_PARTIAL_BASELINE = 3600   # a baseline with some years missing is retried sooner
+TTL_SOIL = 30 * 24 * 3600
+# The baseline is also written to this file so a restart does not refetch it.
+# (On hosts with an ephemeral disk, such as Render's free plan, it lasts until the next deploy/restart.)
+BASELINE_CACHE_FILE = Path(os.getenv("BASELINE_CACHE_FILE",
+                                     Path(__file__).resolve().parents[1] / ".cache" / "baseline.json"))
+
+# If a live refresh fails (rate limit, outage), the last good response may be shown instead,
+# labelled as such and with its original fetch time, as long as it is no older than this.
+STALE_MAX_AGE_S = {
+    "geocode": 30 * 24 * 3600,
+    "forecast": 12 * 3600,      # a 3-day forecast from 12 h ago still covers the next 60 h
+    "rain_baseline": 365 * 24 * 3600,
+    "soil": 90 * 24 * 3600,
+}
 
 # ---------------------------------------------------------------------------
 # RULE: spray window

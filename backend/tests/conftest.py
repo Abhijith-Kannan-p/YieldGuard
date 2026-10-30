@@ -15,10 +15,17 @@ def load_fixture(name: str):
 
 
 @pytest.fixture(autouse=True)
-def _clear_cache():
+def _clear_cache(tmp_path, monkeypatch):
+    from app import http
+    from app.cache import FileCache
+    from app.sources import rainfall
+
     cache.clear()
+    http._backoff_until.clear()
+    monkeypatch.setattr(rainfall, "baseline_store", FileCache(tmp_path / "baseline.json"))
     yield
     cache.clear()
+    http._backoff_until.clear()
 
 
 def make_hours(start: str, rows: list[tuple]):

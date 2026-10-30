@@ -132,8 +132,10 @@ def add_deficit(ev: Evidence, mtd: SourceResult, base: SourceResult, res: dict):
     if res["observed_mm"] is not None:
         ev.add("rain_mtd", "Rainfall so far this month", res["observed_mm"], "mm", mtd, span)
     if res["baseline_mm"] is not None:
-        ev.add("rain_normal", f"Average rainfall for same dates ({res['baseline_years']})", res["baseline_mm"], "mm",
-               base, span)
+        district = (base.data or {}).get("district") if base.ok else None
+        where = f", {district}" if district else ""
+        ev.add("rain_normal", f"Average rainfall for same dates ({res['baseline_years']}{where})", res["baseline_mm"],
+               "mm", base, span)
         ev.add("baseline_years", "Baseline years used", f"{res['baseline_years']} ({res['baseline_year_count']} years)",
                "", base)
     if res["percent_of_normal"] is not None:

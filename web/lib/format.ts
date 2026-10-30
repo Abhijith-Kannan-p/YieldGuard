@@ -21,6 +21,15 @@ export function fmtFetched(iso: string | null | undefined): string {
   return iso ? `${fmtLocal(iso)} IST` : "";
 }
 
+/** 0 -> "just now", 42 -> "42 min", 150 -> "2 h", 4000 -> "2 days" (units from the UI language). */
+export function fmtAge(minutes: number | null | undefined, u: Record<string, string>): string {
+  if (minutes == null) return "";
+  if (minutes < 1) return u.now;
+  if (minutes < 60) return `${minutes} ${u.min}`;
+  if (minutes < 48 * 60) return `${Math.floor(minutes / 60)} ${u.h}`;
+  return `${Math.floor(minutes / 1440)} ${u.d}`;
+}
+
 export function fmtValue(p: DataPoint): string {
   if (p.value == null) return "–";
   if (typeof p.value === "string") return fmtSpan(p.value);
