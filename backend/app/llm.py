@@ -7,7 +7,7 @@ from google import genai
 from google.genai import errors, types
 
 from . import config
-from .prompts import OUTPUT_SCHEMA, SYSTEM_PROMPT
+from .prompts import OUTPUT_SCHEMA, SYSTEM_PROMPT, TRANSCRIBE_SCHEMA, transcribe_prompt
 
 log = logging.getLogger(__name__)
 
@@ -48,10 +48,20 @@ def _gen_config() -> types.GenerateContentConfig:
     )
 
 
-async def _call(model: str, user_message: str) -> dict:
+def _transcribe_config() -> types.GenerateContentConfig:
+    return types.GenerateContentConfig(
+        response_mime_type="application/json",
+        response_json_schema=TRANSCRIBE_SCHEMA,
+        thinking_config=types.ThinkingConfig(thinking_level="minimal"),
+        max_output_tokens=2048,
+    )
+
+
+async def _call(model: str, contents, gen_config: types.GenerateContentConfig | None = None) -> dict:
     try:
         response = await asyncio.wait_for(
-            _get_client().aio.models.generate_content(model=model, contents=user_message, config=_gen_config()),
+            _get_client().aio.models.generate_content(model=model, contents=contents,
+                                                      config=gen_config or _gen_config()),
             timeout=config.LLM_TIMEOUT_S + 5,
         )
     except asyncio.TimeoutError:
@@ -91,14 +101,33 @@ async def generate(user_message: str) -> tuple[dict, str]:
     """
     if not available():
         raise LLMError("language model not configured (GEMINI_API_KEY is not set)")
-    models = [config.LLM_MODEL]
-    if config.LLM_RETRIES and config.LLM_FALLBACK_MODEL and config.LLM_FALLBACK_MODEL != config.LLM_MODEL:
-        models.append(config.LLM_FALLBACK_MODEL)
     last = ""
-    for model in models:
+    for model in _models():
         try:
             return await _call(model, user_message), model
         except _Retryable as e:
             last = str(e)
             log.warning("LLM %s failed (%s)", model, last)
     raise LLMError(f"language model unavailable: {last}")
+
+
+def _models() -> list[str]:
+    models = [config.LLM_MODEL]
+    if config.LLM_RETRIES and config.LLM_FALLBACK_MODEL and config.LLM_FALLBACK_MODEL != config.LLM_MODEL:
+        models.append(config.LLM_FALLBACK_MODEL)
+    return models
+
+
+async def transcribe(wav: bytes, lang_hint: str | None = None) -> tuple[dict, str]:
+    """Transcribe a short WAV clip of the farmer's question. Returns ({text, language}, model used)."""
+    if not available():
+        raise LLMError("voice input needs the language model (GEMINI_API_KEY is not set)")
+    contents = [types.Part.from_bytes(data=wav, mime_type="audio/wav"), transcribe_prompt(lang_hint)]
+    last = ""
+    for model in _models():
+        try:
+            return await _call(model, contents, _transcribe_config()), model
+        except _Retryable as e:
+            last = str(e)
+            log.warning("transcription with %s failed (%s)", model, last)
+    raise LLMError(f"speech-to-text unavailable: {last}")

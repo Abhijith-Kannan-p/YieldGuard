@@ -80,3 +80,27 @@ def build_user_message(question: str, language_name: str, location: dict, now_is
         f"<retrieved_data>\n{json.dumps(payload, ensure_ascii=False, indent=1)}\n</retrieved_data>\n\n"
         f"<farmer_question>\n{question}\n</farmer_question>"
     )
+
+
+TRANSCRIBE_PROMPT = """Transcribe the farmer's spoken question in this audio clip, word for word.
+- The speaker uses English, Hindi or Kannada (possibly mixed). {hint}
+- Write Kannada in Kannada script and Hindi in Devanagari script. Do not translate.
+- Write numbers as ASCII digits (0-9).
+- Do not answer the question and do not add anything that was not said.
+- If there is no clear speech, return an empty text."""
+
+TRANSCRIBE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "text": {"type": "string"},
+        "language": {"type": "string", "enum": ["en", "hi", "kn", "unknown"]},
+    },
+    "required": ["text", "language"],
+    "additionalProperties": False,
+}
+
+
+def transcribe_prompt(lang_hint: str | None) -> str:
+    names = {"en": "English", "hi": "Hindi", "kn": "Kannada"}
+    hint = f"The farmer selected {names[lang_hint]} as their language." if lang_hint in names else ""
+    return TRANSCRIBE_PROMPT.format(hint=hint)

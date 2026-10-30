@@ -110,6 +110,11 @@ LLM_MAX_TOKENS = 8192  # includes the model's thinking tokens
 
 SUPPORTED_LANGUAGES = {"en": "English", "hi": "Hindi", "kn": "Kannada"}
 
+# Voice input: the browser records up to TRANSCRIBE_MAX_SECONDS and uploads 16 kHz mono WAV
+# (32 kB per second), which Gemini transcribes.
+TRANSCRIBE_MAX_SECONDS = 30
+TRANSCRIBE_MAX_BYTES = 2_500_000
+
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 # ---------------------------------------------------------------------------

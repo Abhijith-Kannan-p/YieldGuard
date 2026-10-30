@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="YieldGuard - Multilingual Agritech Risk Advisor", version="1.0.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
 
 
 @app.exception_handler(AdviceError)
@@ -53,6 +53,25 @@ async def get_advice(
     lang: str | None = Query("auto", description="en | hi | kn | auto"),
 ):
     return await advise(q, location=location, lat=lat, lon=lon, lang=lang)
+
+
+@app.post("/api/transcribe")
+async def transcribe(request: Request, lang: str | None = Query("auto")):
+    """Speech to text for the question box. Body: 16-bit PCM WAV recorded in the browser."""
+    audio = await request.body()
+    if len(audio) > config.TRANSCRIBE_MAX_BYTES:
+        raise AdviceError("audio_too_long",
+                          f"Recording is too long. Please keep it under {config.TRANSCRIBE_MAX_SECONDS} seconds.", 413)
+    if len(audio) < 1000 or audio[:4] != b"RIFF" or audio[8:12] != b"WAVE":
+        raise AdviceError("bad_audio", "No usable recording was received. Please try again.", 422)
+    try:
+        raw, model = await llm.transcribe(audio, lang)
+    except llm.LLMError as e:
+        raise AdviceError("transcription_failed", f"Could not turn speech into text ({e}). Please type your question.",
+                          503)
+    text = str(raw.get("text", "")).strip()
+    language = raw.get("language") if raw.get("language") in config.SUPPORTED_LANGUAGES else None
+    return {"text": text, "language": language, "model": model, "transcribed_at": iso(now_local())}
 
 
 @app.get("/api/locations")

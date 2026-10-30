@@ -44,3 +44,37 @@ export async function searchPlaces(q: string, signal: AbortSignal): Promise<Plac
   const data = (await r.json()) as { results: PlaceSuggestion[] };
   return data.results ?? [];
 }
+
+export interface Transcript {
+  text: string;
+  language: "en" | "hi" | "kn" | null;
+  model: string;
+  transcribed_at: string;
+}
+
+/** Sends a WAV recording to the backend for speech-to-text. Throws ApiError with a readable message. */
+export async function transcribe(wav: Blob, lang: string, signal: AbortSignal): Promise<Transcript> {
+  let r: Response;
+  try {
+    r = await fetch(`${API_BASE}/api/transcribe?lang=${encodeURIComponent(lang)}`, {
+      method: "POST",
+      headers: { "Content-Type": "audio/wav" },
+      body: wav,
+      signal,
+    });
+  } catch (err) {
+    if ((err as Error).name === "AbortError") throw new ApiError("timeout", "timeout");
+    throw new ApiError("network", "network");
+  }
+  let body: unknown = null;
+  try {
+    body = await r.json();
+  } catch {
+    /* non-JSON error page */
+  }
+  if (!r.ok) {
+    const msg = (body as { error?: { message?: string } } | null)?.error?.message;
+    throw new ApiError("server", msg || `Server error (${r.status}).`, r.status);
+  }
+  return body as Transcript;
+}

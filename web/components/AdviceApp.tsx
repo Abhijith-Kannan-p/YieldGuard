@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import ForecastChart from "./ForecastChart";
+import MicButton from "./MicButton";
+import { PinIcon, SpeakerIcon } from "./Icons";
 import AttributionFooter from "./AttributionFooter";
 import { ApiError, fetchAdvice, REQUEST_TIMEOUT_MS, searchPlaces } from "@/lib/api";
 import { dataDate, fmtFetched, fmtSpan, fmtValue } from "@/lib/format";
@@ -36,7 +38,6 @@ const subscribeOnline = (cb: () => void) => {
     window.removeEventListener("offline", cb);
   };
 };
-const subscribeNothing = () => () => {};
 
 const isLang = (v: string | null): v is Lang => v === "en" || v === "hi" || v === "kn";
 
@@ -57,8 +58,6 @@ export default function AdviceApp() {
   const [result, setResult] = useState<AdviceResponse | null>(null);
 
   const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
-  const micOk = useSyncExternalStore(subscribeNothing, voice.canListen, () => false);
-  const [micState, setMicState] = useState<"listening" | "idle" | "denied" | "error">("idle");
   const [, setVoicesTick] = useState(0);
 
   const resultRef = useRef<HTMLDivElement>(null);
@@ -140,7 +139,10 @@ export default function AdviceApp() {
     );
   };
 
-  const currentLang = (): Lang => (langChoice === "auto" ? uiLang : langChoice);
+  const onSpokenQuestion = (text: string, spoken: Lang | null) => {
+    setQuestion(text);
+    if (langChoice === "auto" && spoken) setUiLang(spoken);
+  };
 
   const onLangChange = (v: LangChoice) => {
     setLangChoice(v);
@@ -255,9 +257,9 @@ export default function AdviceApp() {
                 onClick={useMyLocation}
                 title={L.useLocation}
                 aria-label={L.useLocation}
-                className="min-w-11 rounded-md border border-border bg-background px-3 hover:border-primary"
+                className="min-w-11 rounded-md border border-border bg-background px-3 text-muted hover:border-primary hover:text-primary"
               >
-                📍
+                <PinIcon />
               </button>
             </div>
             <datalist id="places">
@@ -269,9 +271,12 @@ export default function AdviceApp() {
           </div>
 
           <div className="mb-4">
-            <label htmlFor="question" className="mb-1.5 block font-semibold">
-              {L.question}
-            </label>
+            <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
+              <label htmlFor="question" className="pt-1.5 font-semibold">
+                {L.question}
+              </label>
+              <MicButton lang={langChoice} L={L} onText={onSpokenQuestion} />
+            </div>
             <div className="flex gap-2">
               <textarea
                 id="question"
@@ -283,19 +288,6 @@ export default function AdviceApp() {
                 placeholder={L.questionPlaceholder}
                 className="w-full min-w-0 resize-y rounded-md border border-border bg-background px-3 py-2.5"
               />
-              {micOk && (
-                <button
-                  type="button"
-                  title={L.speak}
-                  aria-label={L.speak}
-                  onClick={() => voice.listen(currentLang(), setQuestion, setMicState)}
-                  className={`min-w-11 rounded-md border px-3 ${
-                    micState === "listening" ? "border-destructive bg-destructive-soft" : "border-border bg-background"
-                  }`}
-                >
-                  🎤
-                </button>
-              )}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
               {L.examples.map((ex) => (
@@ -309,8 +301,6 @@ export default function AdviceApp() {
                 </button>
               ))}
             </div>
-            {micState === "listening" && <p className="mt-2 text-sm text-muted">{L.listening}</p>}
-            {micState === "denied" && <p className="mt-2 text-sm text-amber">{L.micDenied}</p>}
           </div>
 
           <button
@@ -389,16 +379,15 @@ function Result({ res, L, onSpeak }: { res: AdviceResponse; L: Labels; onSpeak?:
             <button
               type="button"
               onClick={onSpeak}
-              title={L.listen}
-              aria-label={L.listen}
-              className="rounded-md border border-border px-3 py-1.5 hover:border-primary"
+              className="inline-flex items-center gap-2 rounded-md border border-primary/60 px-3 py-1.5 text-sm font-semibold text-primary hover:bg-primary/10"
             >
-              🔊
+              <SpeakerIcon />
+              <span>{L.listen}</span>
             </button>
           )}
         </div>
         <p className="mt-1 text-sm text-muted">
-          📍 {loc.name}
+          {loc.name}
           {loc.district ? `, ${loc.district}` : ""} · {loc.lat.toFixed(3)}, {loc.lon.toFixed(3)} · {loc.source}
           {loc.fetched_at ? ` · ${L.fetched} ${fmtFetched(loc.fetched_at)}` : ""}
         </p>

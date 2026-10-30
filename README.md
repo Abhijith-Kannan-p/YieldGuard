@@ -84,6 +84,7 @@ render.yaml          deployment blueprint (no secrets)
 | Long-run rainfall baseline | [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api) | 2000 to last full year, same calendar dates; cached 7 days |
 | Topsoil properties | [ISRIC SoilGrids v2.0](https://rest.isric.org/soilgrids/v2.0/docs) | `clay, sand, phh2o, soc`, `depth=0-5cm`, `value=mean`; cached 30 days |
 | Answer writing | [Google Gemini API](https://ai.google.dev/) | Uses only the data above. Free tier: prompts may be used by Google to improve its products, so only public weather/soil data and the question are sent. |
+| Voice questions (optional) | Google Gemini API (audio input) | Only when the farmer taps **Speak**. The recording is sent to Gemini for transcription and is not stored by YieldGuard. Same free-tier caveat as above. |
 
 **Third-party code:** [Paper Shaders](https://github.com/paper-design/shaders) (Apache-2.0) for the landing background, [Motion](https://motion.dev) (MIT) for the title animation.
 
@@ -115,7 +116,8 @@ All thresholds are in [`backend/app/config.py`](backend/app/config.py) and also 
 - **Framework:** Next.js 16 (App Router, TypeScript, Tailwind CSS v4) with `output: "export"`. `npm run build` writes plain HTML/JS/CSS to `web/out`, which FastAPI serves, so the site and the API share one URL and need no CORS setup.
 - **Theme "Sage Garden"** (tokens in [`web/app/globals.css`](web/app/globals.css)): primary `#7d9a86`, background `#111111`, card `#1a1a1a`, border `#2a2a2a`, muted text `#a3a8a4` (7.8:1 on the background), amber `#d97706` for drought, waterlogging, heavy-rain and soil warnings, red `#ef4444` only for errors and failed sources. Radius `0.5rem`. All text colours pass WCAG AA.
 - **Landing (`/`):** a static mesh-gradient WebGL background ([`ShaderBackground.tsx`](web/components/ShaderBackground.tsx), built on [Paper Shaders](https://github.com/paper-design/shaders), Apache-2.0), the title animated once per page load with [`TextRoll.tsx`](web/components/TextRoll.tsx) (using [`motion`](https://motion.dev)), the tagline "From sky to soil, every season", and a "Get advice" button.
-- **Advice (`/advice/`):** location (default Dharwad, with Karnataka place suggestions and GPS), question, language (Auto / English / हिन्दी / ಕನ್ನಡ), and voice input/output where the browser supports it. It shows loading, empty and error states, a red notice for each failed source saying which part of the answer is missing, amber warnings, the answer with a "Why this advice" section, the rules applied, a 72-hour chart, a table with value, data date, source and fetch time for every number, and the attribution footer.
+- **Voice input:** tap **Speak**, say the question, tap **Stop** (auto-stops after 30 s). The browser records with `MediaRecorder`, shows the input level, rejects silent recordings locally ("check that the right microphone is selected"), converts the audio to 16 kHz mono WAV, and posts it to `/api/transcribe`, where Gemini transcribes it in English, Hindi (Devanagari) or Kannada (Kannada script). The text goes into the question box so the farmer can check it before asking. This replaced the browser's `SpeechRecognition`, which sends audio to Google from Chrome only, fails in Brave and Opera, and has patchy Kannada support.
+- **Advice (`/advice/`):** location (default Dharwad, with Karnataka place suggestions and GPS), question, language (Auto / English / हिन्दी / ಕನ್ನಡ), a **Speak** button for voice questions, and a **Listen** button that reads the answer aloud when the browser has a voice for that language. It shows loading, empty and error states, a red notice for each failed source saying which part of the answer is missing, amber warnings, the answer with a "Why this advice" section, the rules applied, a 72-hour chart, a table with value, data date, source and fetch time for every number, and the attribution footer.
 
 ## Run locally
 
@@ -149,6 +151,7 @@ Demo link format: `/advice/?location=Hubballi&q=Can+I+spray+tomorrow%3F&lang=kn`
 |---|---|
 | `GET /api/advice?q=…&location=…&lang=auto\|en\|hi\|kn` (or `&lat=…&lon=…`) | Full answer with data points, rules, sources, timestamps |
 | `GET /advice?location=…&question=…&lang=en\|hi\|kn` | Same JSON as `/api/advice`. Without `question`, `/advice` serves the advice page. |
+| `POST /api/transcribe?lang=auto\|en\|hi\|kn` | Body: 16-bit PCM WAV (max 30 s). Returns `{text, language, model, transcribed_at}` |
 | `GET /api/locations?q=…` | Karnataka place search |
 | `GET /api/rules` | Thresholds in use |
 | `GET /api/health` | Status, and whether the LLM key is configured (never the key itself) |

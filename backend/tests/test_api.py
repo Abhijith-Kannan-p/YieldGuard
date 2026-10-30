@@ -222,3 +222,37 @@ def test_gemini_model_env_var(monkeypatch):
     finally:
         monkeypatch.undo()
         importlib.reload(config)
+
+
+def _wav(n_bytes=4000):
+    import struct
+
+    data = b"\x00\x00" * (n_bytes // 2)
+    return (b"RIFF" + struct.pack("<I", 36 + len(data)) + b"WAVEfmt " + struct.pack("<IHHIIHH", 16, 1, 1, 16000, 32000, 2, 16)
+            + b"data" + struct.pack("<I", len(data)) + data)
+
+
+def test_transcribe_returns_text(monkeypatch):
+    async def fake(wav, lang):
+        assert wav[:4] == b"RIFF" and lang == "kn"
+        return {"text": "ನಾಳೆ ಸಿಂಪಡಿಸಬಹುದೇ?", "language": "kn"}, "gemini-main"
+
+    monkeypatch.setattr(llm, "transcribe", fake)
+    r = client.post("/api/transcribe?lang=kn", content=_wav(), headers={"content-type": "audio/wav"})
+    assert r.status_code == 200
+    assert r.json()["text"] == "ನಾಳೆ ಸಿಂಪಡಿಸಬಹುದೇ?" and r.json()["language"] == "kn"
+
+
+def test_transcribe_rejects_non_wav_and_oversize():
+    assert client.post("/api/transcribe", content=b"hello" * 500).status_code == 422
+    from app import config
+
+    big = _wav(config.TRANSCRIBE_MAX_BYTES + 10)
+    r = client.post("/api/transcribe", content=big)
+    assert r.status_code == 413 and r.json()["error"]["code"] == "audio_too_long"
+
+
+def test_transcribe_without_key_is_clear_error(monkeypatch):
+    monkeypatch.setattr(llm.config, "GEMINI_API_KEY", "")
+    r = client.post("/api/transcribe", content=_wav())
+    assert r.status_code == 503 and "type your question" in r.json()["error"]["message"]
