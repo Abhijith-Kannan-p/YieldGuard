@@ -1,0 +1,19 @@
+# Render Blueprint: https://render.com/docs/blueprint-spec
+# Secrets are NOT stored here. Set GEMINI_API_KEY in the Render dashboard.
+services:
+  - type: web
+    name: yieldguard
+    runtime: python
+    plan: free
+    buildCommand: pip install -r backend/requirements.txt
+    startCommand: cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-3.5-flash-lite
+      - key: LLM_FALLBACK_MODEL
+        value: gemini-3.8-flash
