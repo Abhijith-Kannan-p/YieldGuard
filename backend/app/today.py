@@ -75,7 +75,7 @@ async def summary(location: str | None = None, lat: float | None = None, lon: fl
             out["warnings"].append({"id": "fertiliser", "time": fe["max_precip_prob_time"],
                                     "value": fe["max_precip_prob_pct"], "unit": "%"})
         mtd = rainfall.month_to_date(fc)
-        if base.ok:
+        if base.ok and mtd.ok:
             df = deficit_rule.evaluate(mtd.data["daily"], base.data["daily"], win_start, win_end,
                                        base.data["start_year"], base.data["end_year"])
             if df["status"] in ("drought_risk", "waterlogging_risk"):

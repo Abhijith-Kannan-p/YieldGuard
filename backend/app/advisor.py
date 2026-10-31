@@ -99,6 +99,7 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     sources = [geo, fc, mtd, base, soil_src]
     failed = [{"id": s.source_id, "name": s.name, "error": s.error} for s in sources if not s.ok]
     stale = [s for s in sources if s.ok and s.stale]
+    fallbacks = [s for s in sources if s.ok and s.meta.get("fallback_for")]
 
     # --- apply rules -------------------------------------------------------
     results = {
@@ -175,6 +176,7 @@ async def advise(question: str, location: str | None = None, lat: float | None =
         "warnings": [f"{f['name']} unavailable: {f['error']}" for f in failed]
                     + [f"{s.name}: live refresh failed ({s.error}); showing data fetched {iso(s.fetched_at)}"
                        for s in stale]
+                    + [f"{s.error} Fetched {iso(s.fetched_at)}." for s in fallbacks]
                     + ([f"Language model unavailable ({llm_error}); showing a rule-based summary."] if llm_error else []),
         "attribution": sorted(set(config.ATTRIBUTION.values())),
     }
@@ -219,6 +221,8 @@ def _source_view(s: SourceResult, now) -> dict:
         "fetched_at": iso(s.fetched_at) if s.fetched_at else None,
         "cached": s.cached,
         "stale": s.stale,
+        "fallback_for": s.meta.get("fallback_for"),
+        "note": s.error if s.ok else None,
         "age_minutes": _age_minutes(s, now),
         "error": s.error,
         "attribution": SOURCE_ATTRIBUTION.get(s.source_id),

@@ -7,7 +7,8 @@ Month-to-date rain, the water balance and the heat check therefore cost no extra
 from datetime import date
 
 from .. import config
-from ..http import SourceResult, cached_fetch, coord_key, get_json
+from ..http import FetchError, SourceResult, cached_fetch, coord_key, get_json
+from . import metno
 from .rainfall import parse_daily
 
 NAME = "Open-Meteo Forecast API"
@@ -81,6 +82,16 @@ async def fetch(lat: float, lon: float, past_from: date, today: date) -> SourceR
         data["past_from"] = past_from.isoformat()
         return data
 
+    async def metno_fallback(err: FetchError) -> SourceResult | None:
+        """Only when Open-Meteo is rate-limited (429) or erroring (5xx); otherwise stored data is used."""
+        if err.status not in config.METNO_FALLBACK_STATUSES:
+            return None
+        res = await metno.fetch(lat, lon)
+        if res.ok:
+            res.error = f"Open-Meteo Forecast API failed ({err}); using {metno.NAME}. {metno.LIMITS}."
+        return res
+
     # The key includes the day so past_days is always right for the cached copy.
     return await cached_fetch("forecast", NAME, config.FORECAST_URL,
-                              f"fc:{coord_key(lat, lon)}:{today.isoformat()}", config.TTL_FORECAST, load)
+                              f"fc:{coord_key(lat, lon)}:{today.isoformat()}", config.TTL_FORECAST, load,
+                              fallback=metno_fallback)

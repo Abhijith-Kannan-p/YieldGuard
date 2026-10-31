@@ -23,6 +23,16 @@ FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 SOILGRIDS_URL = "https://rest.isric.org/soilgrids/v2.0/properties/query"
 
+# Fallbacks (see sources/metno.py and baseline.py)
+METNO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
+# MET Norway requires a User-Agent that identifies the app and a contact (email or URL). Set it in the
+# environment, never in code: METNO_CONTACT=you@example.org. Without it the fallback is not used.
+METNO_CONTACT = os.getenv("METNO_CONTACT", "").strip()
+METNO_FALLBACK_STATUSES = {429, 500, 502, 503, 504}  # Open-Meteo failures that switch to MET Norway
+NASA_POWER_URL = "https://power.larc.nasa.gov/api/temporal/daily/point"
+NASA_POWER_TIMEOUT_S = 60.0       # 26 years of daily data; background build only, never during a question
+NASA_POWER_FILL = -999.0          # NASA POWER's missing-value marker
+
 FORECAST_HOURLY_VARS = [
     "temperature_2m",
     "relative_humidity_2m",

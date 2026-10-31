@@ -8,6 +8,7 @@ import FollowUps from "./FollowUps";
 import { PinIcon } from "./Icons";
 import MicButton from "./MicButton";
 import SavedFields from "./SavedFields";
+import ShareBar from "./ShareBar";
 import { ApiError, fetchAdvice, REQUEST_TIMEOUT_MS, searchPlaces } from "@/lib/api";
 import { fmtAge, fmtFetched, minutesSince } from "@/lib/format";
 import { fill, I18N, type Labels } from "@/lib/i18n";
@@ -331,8 +332,9 @@ export default function AdviceApp() {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-5 px-4 py-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
-        <aside className="grid min-w-0 grid-cols-1 content-start gap-5">
+      {/* 12-column grid on desktop (form 4/12, answer 8/12; 3/9 on wide screens), one column on phones. */}
+      <main className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-4 px-4 py-5 lg:grid-cols-12">
+        <aside className="grid min-w-0 grid-cols-1 content-start gap-4 lg:col-span-4 xl:col-span-3">
           {!online && <div className="rounded-md border border-warning bg-warning-soft p-3">{L.offline}</div>}
 
           <form ref={formRef} onSubmit={submit} className="rounded-md border border-border bg-card p-4" autoComplete="off">
@@ -413,7 +415,7 @@ export default function AdviceApp() {
           />
         </aside>
 
-        <section ref={resultRef} className="grid min-w-0 grid-cols-1 content-start gap-5 scroll-mt-4" aria-live="polite">
+        <section ref={resultRef} className="grid min-w-0 grid-cols-1 content-start gap-4 scroll-mt-4 lg:col-span-8 xl:col-span-9" aria-live="polite">
           {phase === "loading" && <LoadingCard label={statusKey ? (L[statusKey] as string) : L.loading} />}
 
           {phase === "error" && error && (
@@ -438,6 +440,11 @@ export default function AdviceApp() {
             <>
               {lastKnown && <LastKnown lk={lastKnown} L={L} />}
               <AdviceResult res={result} L={L} onSpeak={voice.canSpeak(result.language) ? speakAnswer(result) : undefined} />
+              {/* 8. Share buttons and the follow-up box, at the bottom */}
+              <section aria-label={L.shareTitle} className="rounded-md border border-border bg-card p-4">
+                <h2 className="text-lg font-bold">{L.shareTitle}</h2>
+                <ShareBar res={result} L={L} />
+              </section>
               <FollowUps
                 key={result.request_id}
                 res={result}
@@ -474,7 +481,7 @@ function LastKnown({ lk, L, onSpeak }: { lk: { entry: LastAnswer; failed: string
       <details open>
         <summary className="min-h-11 cursor-pointer font-semibold">{L.showLastKnown}</summary>
         <div className="mt-3">
-          <AdviceResult res={lk.entry.res} L={L} onSpeak={onSpeak} showShare={false} />
+          <AdviceResult res={lk.entry.res} L={L} onSpeak={onSpeak} />
         </div>
       </details>
     </section>

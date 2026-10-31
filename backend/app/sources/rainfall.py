@@ -29,6 +29,9 @@ def baseline_years(today: date) -> tuple[int, int]:
 
 def month_to_date(fc: SourceResult) -> SourceResult:
     """Recent daily rain taken from the combined forecast request: same fetch time, cache and status."""
+    if fc.ok and fc.data.get("provider") == "metno":
+        return SourceResult("rain_mtd", MTD_NAME, fc.url, status="failed",
+                            error="the MET Norway fallback has no past rainfall, so month-to-date rain is unavailable")
     data = {"daily": fc.data.get("daily", {})} if fc.ok else None
     return SourceResult("rain_mtd", MTD_NAME, fc.url, status=fc.status, data=data, fetched_at=fc.fetched_at,
                         cached=fc.cached, stale=fc.stale, error=fc.error, meta={"same_request_as": "forecast"})

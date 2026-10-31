@@ -105,5 +105,7 @@ async def test_failed_build_gives_clear_message_and_waits_before_retrying(archiv
     await _wait_for(lambda: store.errors)
     res = await store.get(DHARWAD, TODAY)
     assert not res.ok and "last build failed" in res.error and "HTTP 429" in res.error
+    assert "NASA POWER" in res.error  # no saved baseline, so NASA POWER was tried too, and also failed
     await asyncio.sleep(0.05)
-    assert len(calls) == 1  # not retried before BASELINE_RETRY_AFTER_S
+    assert len(calls) == 2  # one archive try + one NASA POWER try; not retried before BASELINE_RETRY_AFTER_S
+    assert "start_date" in calls[0] and calls[1]["parameters"] == "PRECTOTCORR"

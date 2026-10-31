@@ -18,11 +18,12 @@ def load_fixture(name: str):
 def _clear_cache(tmp_path, monkeypatch):
     from app import baseline, http, sessions, today
     from app.cache import FileCache
-    from app.sources import soil
+    from app.sources import metno, soil
 
     cache.clear()
     today.clear()
     sessions.clear()
+    metno.clear()
     http._backoff_until.clear()
     # Fresh, file-backed stores per test; no background baseline builds unless a test asks for them.
     monkeypatch.setattr(baseline, "store", baseline.BaselineStore(tmp_path / "baselines.json", autostart=False))

@@ -8,6 +8,10 @@
 - A district that is missing (or older than TTL_BASELINE) is queued for a background
   build. Builds run one at a time, spaced BASELINE_BUILD_SPACING_S apart. Until a build
   succeeds, the answer says the baseline is not available yet.
+- The Open-Meteo archive is always tried first. Only if it fails AND no baseline is saved for
+  that district yet, the build falls back to NASA POWER (daily PRECTOTCORR, community AG), whose
+  missing-value marker -999 is stored as missing and so excluded from every average. The saved
+  entry is labelled with its source and build date. NASA POWER is never called during a question.
 """
 import asyncio
 import calendar
@@ -37,9 +41,30 @@ def _label(place: dict) -> str:
     return place.get("district") or place.get("name") or f"{place['lat']:.2f}, {place['lon']:.2f}"
 
 
+NASA_NAME = "NASA POWER (PRECTOTCORR, community AG)"
+
+
+def parse_nasa_power(payload: dict) -> dict[str, float | None]:
+    """NASA POWER daily point JSON -> {YYYY-MM-DD: mm}. The fill value (-999) becomes None (missing)."""
+    fill = (payload.get("header") or {}).get("fill_value", config.NASA_POWER_FILL)
+    series = ((payload.get("properties") or {}).get("parameter") or {}).get("PRECTOTCORR") or {}
+    out: dict[str, float | None] = {}
+    for k, v in series.items():
+        iso_day = f"{k[:4]}-{k[4:6]}-{k[6:8]}"
+        out[iso_day] = None if v is None or v <= fill + 0.5 else float(v)
+    return out
+
+
 def build_entry(place: dict, payload: dict, start_year: int, end_year: int, built_at: datetime) -> dict:
-    """Turn one archive response into the stored form: per-year lists of daily rainfall (index = day of year)."""
-    daily = parse_daily(payload)
+    """Turn one Open-Meteo archive response into the stored form."""
+    return build_entry_from_daily(place, parse_daily(payload), start_year, end_year, built_at, BASELINE_NAME,
+                                  config.ARCHIVE_URL,
+                                  f"start_date={start_year}-01-01 end_date={end_year}-12-31 daily=precipitation_sum")
+
+
+def build_entry_from_daily(place: dict, daily: dict[str, float | None], start_year: int, end_year: int,
+                           built_at: datetime, source: str, url: str, request: str) -> dict:
+    """Stored form: per-year lists of daily rainfall (index = day of year), missing days as None."""
     years: dict[str, list[float | None]] = {}
     for y in range(start_year, end_year + 1):
         n = 366 if calendar.isleap(y) else 365
@@ -48,7 +73,7 @@ def build_entry(place: dict, payload: dict, start_year: int, end_year: int, buil
         if sum(v is not None for v in vals) >= n - 5:  # tolerate a few missing days; the rule skips gaps
             years[str(y)] = vals
     if len(years) < config.BASELINE_MIN_YEARS:
-        raise FetchError(f"archive returned only {len(years)} usable years")
+        raise FetchError(f"{source} returned only {len(years)} usable years")
     return {
         "district": place.get("district"),
         "place": place.get("name"),
@@ -58,8 +83,9 @@ def build_entry(place: dict, payload: dict, start_year: int, end_year: int, buil
         "end_year": end_year,
         "years_used": sorted(int(y) for y in years),
         "built_at": iso(built_at),
-        "source": BASELINE_NAME,
-        "request": f"start_date={start_year}-01-01 end_date={end_year}-12-31 daily=precipitation_sum",
+        "source": source,
+        "url": url,
+        "request": request,
         "years": years,
     }
 
@@ -122,9 +148,11 @@ class BaselineStore:
                 self.schedule(place)  # keep serving the stored copy meanwhile
             if key not in self._daily:
                 self._daily[key] = entry_daily(entry)
-            data = {"daily": self._daily[key], "district": entry.get("district"), "start_year": entry["start_year"],
+            data = {"daily": self._daily[key], "district": entry.get("district"), "provider": entry.get("source"),
+                    "start_year": entry["start_year"],
                     "end_year": entry["end_year"], "years_used": entry["years_used"], "built_at": entry["built_at"]}
-            return SourceResult("rain_baseline", BASELINE_NAME, config.ARCHIVE_URL, data=data,
+            return SourceResult("rain_baseline", entry.get("source", BASELINE_NAME), entry.get("url", config.ARCHIVE_URL),
+                                data=data,
                                 fetched_at=datetime.fromisoformat(entry["built_at"]), cached=True)
 
         self.schedule(place)
@@ -201,10 +229,19 @@ class BaselineStore:
             entry = build_entry(place, payload, start_year, end_year, now_local())
         except Exception as e:
             error = str(e) if isinstance(e, FetchError) else f"unexpected response ({type(e).__name__})"
-            self.errors[key] = {"error": error, "at": iso(now_local()),
-                                "retry_after": time.monotonic() + config.BASELINE_RETRY_AFTER_S}
-            log.warning("rainfall baseline build for %s failed: %s", _label(place), error)
-            return False
+            entry = None
+            if key not in self.entries:  # no saved baseline for this district: try NASA POWER
+                log.warning("Open-Meteo archive failed for %s (%s); trying NASA POWER", _label(place), error)
+                try:
+                    entry = await self._build_from_nasa(place, start_year, end_year)
+                except Exception as e2:
+                    error2 = str(e2) if isinstance(e2, FetchError) else f"unexpected response ({type(e2).__name__})"
+                    error = f"Open-Meteo archive: {error}; NASA POWER: {error2}"
+            if entry is None:
+                self.errors[key] = {"error": error, "at": iso(now_local()),
+                                    "retry_after": time.monotonic() + config.BASELINE_RETRY_AFTER_S}
+                log.warning("rainfall baseline build for %s failed: %s", _label(place), error)
+                return False
         self.entries[key] = entry
         self._daily.pop(key, None)
         self.errors.pop(key, None)
@@ -212,6 +249,21 @@ class BaselineStore:
         log.info("built rainfall baseline for %s: %d years in %.1f s", _label(place), len(entry["years_used"]),
                  time.perf_counter() - t0)
         return True
+
+    async def _build_from_nasa(self, place: dict, start_year: int, end_year: int) -> dict:
+        params = {
+            "parameters": "PRECTOTCORR",
+            "community": "AG",
+            "latitude": round(place["lat"], 4),
+            "longitude": round(place["lon"], 4),
+            "start": f"{start_year}0101",
+            "end": f"{end_year}1231",
+            "format": "JSON",
+        }
+        payload = await get_json(config.NASA_POWER_URL, params, timeout_s=config.NASA_POWER_TIMEOUT_S)
+        return build_entry_from_daily(place, parse_nasa_power(payload), start_year, end_year, now_local(), NASA_NAME,
+                                      config.NASA_POWER_URL,
+                                      f"start={start_year}0101 end={end_year}1231 parameters=PRECTOTCORR community=AG")
 
     async def prebuild_default(self) -> None:
         """At startup, if nothing is stored yet, queue the default location's district."""

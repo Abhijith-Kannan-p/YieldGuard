@@ -36,7 +36,7 @@ export default function HourStrip({
   const h = hours[Math.min(sel, hours.length - 1)];
 
   return (
-    <section className="rounded-md border border-border bg-card p-4">
+    <section data-section="strip" className="rounded-md border border-border bg-card p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-bold">{L.stripTitle}</h2>
         <p className="text-sm text-muted-foreground">{L.stripHelp}</p>
@@ -52,7 +52,8 @@ export default function HourStrip({
           {hours.map((x, i) => {
             const s = classify(x, maxWind, maxProb);
             const hr = x.time.slice(11, 13);
-            const newDay = i === 0 || hr === "00";
+            const newDay = i === 0 || (hr === "00" && hours[i - 1]?.time.slice(0, 10) !== x.time.slice(0, 10));
+            const labelled = i % 4 === 0; // time label on every fourth cell
             return (
               <div key={x.time} className="flex flex-col items-center">
                 <span className="h-6 whitespace-nowrap text-sm font-semibold text-muted-foreground">{newDay ? fmtLocal(x.time.slice(0, 10)) : ""}</span>
@@ -66,9 +67,11 @@ export default function HourStrip({
                     i === sel ? "ring-2 ring-foreground ring-offset-2 ring-offset-card" : ""
                   }`}
                 >
-                  {hr}
                   {inWindow(x.time) && <span className="absolute top-1 h-1 w-5 rounded bg-primary-foreground/70" aria-hidden="true" />}
                 </button>
+                <span className="h-6 whitespace-nowrap pt-1 text-sm tabular-nums text-muted-foreground" aria-hidden="true">
+                  {labelled ? x.time.slice(11, 16) : ""}
+                </span>
               </div>
             );
           })}

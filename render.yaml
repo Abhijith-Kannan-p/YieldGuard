@@ -14,6 +14,8 @@ services:
         value: 3.12.8
       - key: GEMINI_API_KEY
         sync: false
+      - key: METNO_CONTACT     # email or URL for MET Norway's User-Agent; set in the dashboard
+        sync: false
       - key: NODE_VERSION
         value: 22.12.0
       - key: GEMINI_MODEL

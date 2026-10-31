@@ -70,7 +70,7 @@ backend/
     config.py        all thresholds, URLs, timeouts, cache TTLs
     http.py          fetch with timeout + 1 retry, caching, SourceResult
     cache.py         TTL cache that keeps fetch time
-    sources/         geocode, forecast (hourly + daily, one request), rainfall helpers, soil
+    sources/         geocode, forecast (hourly + daily, one request), metno (fallback), rainfall helpers, soil
     rules/           spray, heavy_rain, deficit, soil, irrigation, heat, fertiliser
     baseline.py      per-district rainfall baseline: background build, saved to data/
     today.py         "Today in your field" summary (landing card, saved fields), cached 1 h per location
@@ -84,13 +84,14 @@ backend/
     language.py      script-based language detection
     advisor.py       orchestration for one request
     main.py          FastAPI app and routes, serves the built frontend (web/out)
-  tests/             119 tests; fixtures are real API responses (tests only, never imported by app/)
+  tests/             127 tests; fixtures are real API responses (tests only, never imported by app/)
   devtools/          USE_FIXTURES=1 local dev server (never used in deployment)
 web/                 Next.js (App Router, TypeScript, Tailwind), built as a static export
   app/page.tsx         landing page (shader background, TextRoll title, live "Today in your field" card)
   app/advice/page.tsx  advice dashboard
-  components/          AdviceApp, AdviceResult, FollowUps, StatTiles, HourStrip, FieldPlanner, SavedFields, ShareBar,
-                       SourceFooter, TodayCard, MicButton, ShaderBackground, TextRoll, AttributionFooter
+  components/          AdviceApp, AdviceResult, AnswerSections, FollowUps, HourStrip, FieldPlanner (irrigation table),
+                       SavedFields, ShareBar, TodayCard, MicButton, ShaderBackground, TextRoll, AttributionFooter
+  tests/               vitest: answer layout order (fixture = a saved real /api/advice response)
   lib/                 API client, types, EN/HI/KN labels, formatting, device storage, voice
 render.yaml          deployment blueprint (no secrets)
 ```
@@ -105,13 +106,15 @@ render.yaml          deployment blueprint (no secrets)
 | 72-hour hourly forecast | [Open-Meteo Forecast API](https://open-meteo.com/en/docs) | hourly `temperature_2m, relative_humidity_2m, precipitation_probability, precipitation, wind_speed_10m`, `forecast_hours=72`, `timezone=Asia/Kolkata` |
 | Daily forecast and month-to-date rain | Same request (no extra call) | daily `precipitation_sum, et0_fao_evapotranspiration, temperature_2m_max`, `forecast_days=7`, `past_days` back to the 1st of the month. Cached 60 min per location |
 | Long-run rainfall baseline | [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api) | 2000 to last full year, same calendar dates; one request per district, built in the background, saved to `backend/data/baselines.json`, rebuilt after 30 days |
+| Forecast fallback | [MET Norway Locationforecast 2.0 (compact)](https://api.met.no/weatherapi/locationforecast/2.0/documentation) | Used **only** when Open-Meteo returns 429 or 5xx. Identifies itself as `YieldGuard/1.0 (contact: METNO_CONTACT)`; coordinates rounded to 4 decimals; cached until its `Expires` header and revalidated with `If-Modified-Since`; wind converted from m/s to km/h (× 3.6) before any rule runs. Every value is labelled "MET Norway fallback" with its fetch time. It has no rain probability, ET0 or past rainfall, so those parts show as unavailable. |
+| Baseline fallback | [NASA POWER daily point API](https://power.larc.nasa.gov/docs/services/api/temporal/daily/) | `parameters=PRECTOTCORR`, `community=AG`, 2000–2025. Used **only** in the background build, when the Open-Meteo archive fails **and** no baseline is saved for the district. `-999` (fill value) is stored as missing and excluded from every average. Saved to `backend/data/baselines.json` labelled "NASA POWER" with its build date. Never called during a question. |
 | Topsoil properties | [ISRIC SoilGrids v2.0](https://rest.isric.org/soilgrids/v2.0/docs) | `clay, sand, phh2o, soc`, `depth=0-5cm`, `value=mean`; cached 7 days per coordinate pair, saved to `backend/.cache/soil_cache.json`; on a 503 the saved copy is shown with its fetch time |
 | Answer writing | [Google Gemini API](https://ai.google.dev/) | Uses only the data above. Free tier: prompts may be used by Google to improve its products, so only public weather/soil data and the question are sent. |
 | Voice questions (optional) | Google Gemini API (audio input) | Only when the farmer taps **Speak**. The recording is sent to Gemini for transcription and is not stored by YieldGuard. Same free-tier caveat as above. |
 
 **Third-party code:** [Paper Shaders](https://github.com/paper-design/shaders) (Apache-2.0) for the landing background, [Motion](https://motion.dev) (MIT) for the title animation.
 
-**Attribution:** Weather data by [Open-Meteo.com](https://open-meteo.com/), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Soil data: SoilGrids v2.0, [ISRIC – World Soil Information](https://www.isric.org/), CC BY 4.0.
+**Attribution:** Weather data by [Open-Meteo.com](https://open-meteo.com/), licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Soil data: SoilGrids v2.0, [ISRIC – World Soil Information](https://www.isric.org/), CC BY 4.0. Fallback forecast: [MET Norway](https://api.met.no/) (Norwegian Meteorological Institute), CC BY 4.0 / NLOD 2.0. Fallback baseline: [NASA POWER](https://power.larc.nasa.gov/) project, NASA Langley Research Center.
 
 **SoilGrids unit conversion:** values are stored as integers scaled by `d_factor` (read from each response): clay and sand g/kg ÷ 10 → %, pH × 10 ÷ 10 → pH, SOC dg/kg ÷ 10 → g/kg.
 
@@ -165,6 +168,19 @@ All thresholds are in [`backend/app/config.py`](backend/app/config.py) and also 
 - **Voice input:** tap **Speak**, say the question, tap **Stop** (auto-stops after 30 s). The browser records with `MediaRecorder`, shows the input level, rejects silent recordings locally ("check that the right microphone is selected"), converts the audio to 16 kHz mono WAV, and posts it to `/api/transcribe`, where Gemini transcribes it in English, Hindi (Devanagari) or Kannada (Kannada script). The text goes into the question box so the farmer can check it before asking. This replaced the browser's `SpeechRecognition`, which sends audio to Google from Chrome only, fails in Brave and Opera, and has patchy Kannada support.
 - **Advice (`/advice/`):** location (default Dharwad, with Karnataka place suggestions and GPS), question, language (Auto / English / हिन्दी / ಕನ್ನಡ), a **Speak** button for voice questions, and a **Listen** button that reads the answer aloud when the browser has a voice for that language. It shows loading, empty and error states, a red notice for each failed source saying which part of the answer is missing, amber warnings, the answer with a "Why this advice" section, the rules applied, the 72-hour strip, the irrigation planner, heat and fertiliser cards, a table with value, data date, source and fetch time for every number, and the attribution footer.
 
+## Answer layout
+
+Every answer uses the same order, on a 12-column grid on desktop and one column on phones (labels left, numbers right, equal spacing):
+
+1. **Summary bar**: the answer in one sentence, a status badge (OK / Warning / Data missing), the place and the fetch time.
+2. **Now**: three equal cards (temperature, rain chance next 24 h, wind) with unit, time and source; a missing value shows "–" and "not available".
+3. **Next 72 hours**: the hour strip, with a time label on every fourth cell.
+4. **Alerts**: one row per alert (date, rule, advice); amber for warnings and fallbacks, red for errors.
+5. **Advice**: short sentences, one numbered action per line, each with its source and times.
+6. **Why this advice** (collapsed): a table of rule, input values and result, plus the day-by-day irrigation balance.
+7. **Data and sources**: source, what it supplied, fetch time and status (live, cached, saved copy, fallback, unavailable).
+8. **Share** (Copy summary, WhatsApp) and the **follow-up** box.
+
 ## Follow-up questions
 
 Below each answer is a follow-up box ("What about Sunday morning?").
@@ -207,7 +223,9 @@ USE_FIXTURES=1 ./run.sh                   # macOS / Linux
 - **It cannot run in the deployed app.** The fixture code lives in `backend/devtools/`, which `backend/app/` never imports (a test checks this). Render's start command is `uvicorn app.main:app`, which ignores `USE_FIXTURES`, and the fixture server refuses to start if `RENDER` is set or `USE_FIXTURES` is not `1`.
 - `USE_FIXTURES` is read from the shell, not from `.env`.
 
-Run the tests:
+Frontend tests (layout order, missing values, sentence splitting): `cd web && npm test`.
+
+Run the backend tests:
 
 ```bash
 cd backend
@@ -254,6 +272,7 @@ Errors return JSON `{"error": {"code", "message"}}`: `404 location_not_found`, `
 | `LOG_LEVEL` | No | `INFO` | Server log level |
 | `PYTHON_VERSION`, `NODE_VERSION` | Render only | `3.12.8`, `22.12.0` | Set in `render.yaml` |
 | `NEXT_PUBLIC_API_BASE` | No | same origin | Only for hosting the frontend separately from the API |
+| `METNO_CONTACT` | Recommended | – | Email or URL for MET Norway's User-Agent (forecast fallback). Empty = fallback off |
 | `CORS_ORIGINS` | No | `http://localhost:3000,http://127.0.0.1:3000` | Origins allowed to send the session cookie cross-origin (Next.js dev server only) |
 | `YIELDGUARD_DATA_DIR` / `YIELDGUARD_CACHE_DIR` | No | `backend/data`, `backend/.cache` | Where the rainfall baseline and the SoilGrids cache are saved |
 

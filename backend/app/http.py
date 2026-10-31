@@ -49,7 +49,11 @@ class SourceResult:
 
 
 class FetchError(Exception):
-    pass
+    """A failed fetch. `status` is the HTTP status when there was one (429 also for a backoff skip)."""
+
+    def __init__(self, message: str, status: int | None = None):
+        super().__init__(message)
+        self.status = status
 
 
 _client: httpx.AsyncClient | None = None
@@ -128,16 +132,17 @@ async def get_json(url: str, params: Any, timeout_s: float = config.HTTP_TIMEOUT
     name = provider(url)
     path = urlsplit(url).path
     last_err: str = "unknown error"
+    last_status: int | None = None
     for attempt in range(retries + 1):
         wait = backoff_remaining(url)
         if wait > 0:
             log.info("skip  %s %s %s: rate-limit backoff, %.0f s left", name, path, _describe(params), wait)
-            raise FetchError(f"rate limit reached; paused for {wait:.0f} s more")
+            raise FetchError(f"rate limit reached; paused for {wait:.0f} s more", status=429)
         async with _gate(name):
             wait = backoff_remaining(url)  # another call may have hit a 429 while this one waited
             if wait > 0:
                 log.info("skip  %s %s %s: rate-limit backoff, %.0f s left", name, path, _describe(params), wait)
-                raise FetchError(f"rate limit reached; paused for {wait:.0f} s more")
+                raise FetchError(f"rate limit reached; paused for {wait:.0f} s more", status=429)
             t0 = time.perf_counter()
             status: int | str = "-"
             try:
@@ -148,32 +153,32 @@ async def get_json(url: str, params: Any, timeout_s: float = config.HTTP_TIMEOUT
                     _backoff_until[name] = _clock() + pause
                     reason = _reason(resp)
                     raise FetchError(f"rate limit reached (HTTP 429{': ' + reason if reason else ''}); "
-                                     f"paused for {pause:.0f} s")
+                                     f"paused for {pause:.0f} s", status=429)
                 if resp.status_code == 429:
-                    last_err = "rate limit reached (HTTP 429)"
+                    last_err, last_status = "rate limit reached (HTTP 429)", 429
                 elif resp.status_code in RETRYABLE_STATUS:
-                    last_err = f"HTTP {resp.status_code}"
+                    last_err, last_status = f"HTTP {resp.status_code}", resp.status_code
                 elif resp.status_code >= 400:
                     # Client errors won't fix themselves - do not retry.
-                    raise FetchError(f"HTTP {resp.status_code}: {_short(resp.text)}")
+                    raise FetchError(f"HTTP {resp.status_code}: {_short(resp.text)}", status=resp.status_code)
                 else:
                     return resp.json()
             except FetchError:
                 raise
             except httpx.TimeoutException:
                 status = "timeout"
-                last_err = f"timed out after {timeout_s:.0f}s"
+                last_err, last_status = f"timed out after {timeout_s:.0f}s", None
             except httpx.HTTPError as e:
                 status = type(e).__name__
-                last_err = f"network error ({type(e).__name__})"
+                last_err, last_status = f"network error ({type(e).__name__})", None
             except ValueError:
-                last_err = "response was not valid JSON"
+                last_err, last_status = "response was not valid JSON", None
             finally:
                 log.info("fetch %s %s %s -> %s in %.0f ms", name, path, _describe(params), status,
                          (time.perf_counter() - t0) * 1000)
         if attempt < retries:
             await asyncio.sleep(0.5)
-    raise FetchError(last_err)
+    raise FetchError(last_err, status=last_status)
 
 
 # ---------------------------------------------------------------------------
@@ -184,13 +189,15 @@ _inflight: dict[str, asyncio.Future] = {}
 
 async def cached_fetch(source_id: str, name: str, url: str, cache_key: str, ttl_s: float,
                        loader: Callable[[], Any], ttl_for: Callable[[Any], float] | None = None,
-                       store=None) -> SourceResult:
+                       store=None, fallback: Callable[[FetchError], Any] | None = None) -> SourceResult:
     """Return a cached SourceResult or run `loader` (an async callable returning data).
 
     Concurrent requests for the same key share one live call. If the live call fails and
     an earlier good response is stored (within STALE_MAX_AGE_S), that response is returned
     marked stale, with its original fetch time and the refresh error.
     `store` defaults to the in-memory cache; the rainfall baseline uses a file-backed store.
+    `fallback(error)` (async, optional) may return a SourceResult from another provider; it is tried
+    after a failed live call and before stored data (used for the MET Norway forecast fallback).
     """
     store = store if store is not None else cache
     hit = store.get(cache_key)
@@ -204,6 +211,7 @@ async def cached_fetch(source_id: str, name: str, url: str, cache_key: str, ttl_
         except Exception as e:
             error = str(e)  # the shared live call failed; fall back to stored data below
     else:
+        exc: FetchError | None = None
         fut: asyncio.Future = asyncio.get_running_loop().create_future()
         _inflight[cache_key] = fut
         try:
@@ -214,14 +222,19 @@ async def cached_fetch(source_id: str, name: str, url: str, cache_key: str, ttl_
             return SourceResult(source_id, name, url, data=data, fetched_at=fetched_at, cached=False)
         except Exception as e:
             if isinstance(e, FetchError):
-                error = str(e)
+                error, exc = str(e), e
             else:  # parsing bugs or unexpected shapes must not crash the request
                 log.exception("loader for %s failed", source_id)
                 error = f"unexpected response ({type(e).__name__})"
-            fut.set_exception(FetchError(error))
+                exc = FetchError(error)
+            fut.set_exception(FetchError(error, status=exc.status))
             fut.exception()  # mark retrieved so asyncio does not warn when nobody else waited
         finally:
             _inflight.pop(cache_key, None)
+        if fallback is not None and exc is not None:
+            fb = await fallback(exc)
+            if fb is not None and fb.ok:
+                return fb
 
     old = store.get_stale(cache_key)
     max_age = config.STALE_MAX_AGE_S.get(source_id, 0)

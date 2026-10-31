@@ -37,6 +37,8 @@ export interface SourceView {
   cached: boolean;
   stale?: boolean; // live refresh failed; data is the last good response (fetched_at is its original time)
   age_minutes?: number | null;
+  fallback_for?: string | null; // e.g. "Open-Meteo": this source stood in for it
+  note?: string | null; // why a fallback or saved copy was used
   error: string | null;
   attribution: string | null;
 }

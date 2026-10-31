@@ -53,7 +53,7 @@ export default function ShareBar({ res, L }: { res: AdviceResponse; L: Labels })
   const text = summaryText(res, L);
 
   return (
-    <div className="mt-4">
+    <div className="mt-2">
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
