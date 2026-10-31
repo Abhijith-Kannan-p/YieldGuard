@@ -44,3 +44,10 @@ export function dataDate(p: DataPoint, labels: { soilMap: string; place: string 
   if (p.source_id === "geocode" || p.source_id === "user") return labels.place;
   return "–";
 }
+
+/** Whole minutes from an ISO time until now (0 if in the future or unparsable). */
+export function minutesSince(iso: string | null | undefined): number | null {
+  if (!iso) return null;
+  const t = Date.parse(iso);
+  return Number.isNaN(t) ? null : Math.max(0, Math.round((Date.now() - t) / 60000));
+}

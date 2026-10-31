@@ -94,6 +94,10 @@ export interface AdviceResponse {
   } | null;
   sources: SourceView[];
   warnings: string[];
+  forecast_daily?: { source: string; fetched_at: string; units: Record<string, string>; days: DailyRow[] } | null;
+  water_balance?: WaterBalance | null;
+  heat?: HeatResult | null;
+  fertiliser?: FertiliserResult | null;
   fixture_mode?: boolean; // only set by the local-development fixture server (USE_FIXTURES=1)
   data_age?: { source: string; fetched_at: string | null; age_minutes: number | null; cached: boolean; stale: boolean }[];
   attribution: string[];
@@ -104,4 +108,69 @@ export interface PlaceSuggestion {
   district: string | null;
   lat: number;
   lon: number;
+}
+
+export interface DailyRow {
+  date: string;
+  precipitation_sum: number | null;
+  et0_fao_evapotranspiration: number | null;
+  temperature_2m_max: number | null;
+}
+
+export interface WaterBalance {
+  status: "irrigate" | "ok" | "unknown";
+  irrigate_on: string | null;
+  days: { date: string; et0_mm: number; crop_use_mm: number; rain_mm: number; deficit_mm: number; over_threshold: boolean }[];
+  final_deficit_mm: number | null;
+  total_crop_use_mm: number | null;
+  total_rain_mm: number | null;
+  incomplete_from: string | null;
+  thresholds: { crop_factor: number; deficit_mm: number; days: number };
+}
+
+export interface HeatResult {
+  status: "warning" | "ok" | "unknown";
+  hot_days: { date: string; tmax_c: number }[];
+  max_tmax_c: number | null;
+  max_tmax_date: string | null;
+  thresholds: { tmax_c: number; days: number };
+}
+
+export interface FertiliserResult {
+  status: "delay" | "ok" | "unknown";
+  max_precip_prob_pct: number | null;
+  max_precip_prob_time: string | null;
+  total_precip_mm: number | null;
+  window_start: string | null;
+  window_end: string | null;
+  thresholds: { prob_pct: number; total_mm: number; lookahead_h: number };
+}
+
+export interface TodaySource {
+  name: string;
+  status: string;
+  fetched_at: string | null;
+  cached: boolean;
+  stale: boolean;
+  error: string | null;
+}
+
+/** GET /api/today: short live summary for the landing card and saved fields. */
+export interface TodaySummary {
+  location: { name: string; district: string | null; lat: number; lon: number };
+  computed_at: string;
+  refresh_after_s: number;
+  served_from_cache: boolean;
+  sources: { forecast: TodaySource; soil: TodaySource; baseline: TodaySource };
+  spray: { next: SprayWindow | null; hours_checked: number } | null;
+  rain_24h: {
+    max_prob_pct: number | null;
+    max_prob_time: string | null;
+    total_mm: number | null;
+    window_start: string | null;
+    window_end: string | null;
+    status: string;
+  } | null;
+  soil: { sand_pct: number | null; clay_pct: number | null; ph: number | null; flags: string[]; offset_km: number | null } | null;
+  warnings: { id: string; time: string | null; value: number | null; unit: string }[];
 }

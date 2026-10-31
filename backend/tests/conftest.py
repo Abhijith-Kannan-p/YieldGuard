@@ -16,11 +16,12 @@ def load_fixture(name: str):
 
 @pytest.fixture(autouse=True)
 def _clear_cache(tmp_path, monkeypatch):
-    from app import baseline, http
+    from app import baseline, http, today
     from app.cache import FileCache
     from app.sources import soil
 
     cache.clear()
+    today.clear()
     http._backoff_until.clear()
     # Fresh, file-backed stores per test; no background baseline builds unless a test asks for them.
     monkeypatch.setattr(baseline, "store", baseline.BaselineStore(tmp_path / "baselines.json", autostart=False))

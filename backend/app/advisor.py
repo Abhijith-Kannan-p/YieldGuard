@@ -8,7 +8,10 @@ import uuid
 from . import baseline, config, evidence, fallback, grounding, language, llm, prompts
 from .http import SourceResult
 from .rules import deficit as deficit_rule
+from .rules import fertiliser as fertiliser_rule
+from .rules import heat as heat_rule
 from .rules import heavy_rain as heavy_rule
+from .rules import irrigation as irrigation_rule
 from .rules import soil as soil_rule
 from .rules import spray as spray_rule
 from .sources import forecast, geocode, rainfall, soil
@@ -105,6 +108,9 @@ async def advise(question: str, location: str | None = None, lat: float | None =
                                          base.data["daily"] if base.ok else None,
                                          win_start, win_end, *base_years),
         "soil": soil_rule.evaluate(soil_src.data["properties"] if soil_src.ok else None),
+        "irrigation": irrigation_rule.plan(fc.data.get("days", [])) if fc.ok else None,
+        "heat": heat_rule.evaluate(fc.data.get("days", [])) if fc.ok else None,
+        "fertiliser": fertiliser_rule.evaluate(fc.data["hours"], now) if fc.ok else None,
     }
 
     ev = evidence.Evidence()
@@ -114,6 +120,9 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     evidence.add_heavy_rain(ev, fc, results["heavy_rain"] or {})
     evidence.add_deficit(ev, mtd, base, results["deficit"])
     evidence.add_soil(ev, soil_src, results["soil"])
+    evidence.add_irrigation(ev, fc, results["irrigation"])
+    evidence.add_heat(ev, fc, results["heat"])
+    evidence.add_fertiliser(ev, fc, results["fertiliser"])
     known = {p["id"] for p in ev.points}
 
     # --- language model (or deterministic fallback) -------------------------
@@ -157,6 +166,10 @@ async def advise(question: str, location: str | None = None, lat: float | None =
         "rules": ev.rules,
         "spray_windows": (results["spray"] or {}).get("windows", []),
         "forecast_hourly": _series(fc, now),
+        "forecast_daily": _daily(fc),
+        "water_balance": results["irrigation"],
+        "heat": results["heat"],
+        "fertiliser": results["fertiliser"],
         "sources": [_source_view(s, now) for s in sources],
         "data_age": _freshness(sources, now),
         "warnings": [f"{f['name']} unavailable: {f['error']}" for f in failed]
@@ -171,7 +184,7 @@ def _series(fc: SourceResult, now) -> dict | None:
     if not fc.ok:
         return None
     current = now.replace(minute=0, second=0, microsecond=0)
-    hours = [h for h in fc.data["hours"] if parse_local(h["time"]) >= current]
+    hours = [h for h in fc.data["hours"] if parse_local(h["time"]) >= current][: config.FORECAST_HOURS]
     return {"source": fc.name, "fetched_at": iso(fc.fetched_at), "units": fc.data.get("units", {}), "hours": hours}
 
 
@@ -188,6 +201,13 @@ def _freshness(sources: list[SourceResult], now) -> list[dict]:
         out.append({"source": s.name, "fetched_at": iso(s.fetched_at) if s.fetched_at else None,
                     "age_minutes": _age_minutes(s, now), "cached": s.cached, "stale": s.stale})
     return out
+
+
+def _daily(fc: SourceResult) -> dict | None:
+    if not fc.ok or not fc.data.get("days"):
+        return None
+    return {"source": fc.name, "fetched_at": iso(fc.fetched_at), "units": fc.data.get("daily_units", {}),
+            "days": fc.data["days"][: config.FORECAST_DAILY_DAYS]}
 
 
 def _source_view(s: SourceResult, now) -> dict:

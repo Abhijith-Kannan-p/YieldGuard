@@ -8,6 +8,10 @@ Type a village or town, ask a question in your language, and get:
 - **Heavy-rain warnings** for the next 24 hours.
 - **Rainfall vs normal**: this month's rain compared with the 2000–2025 average for the same dates (drought or waterlogging risk).
 - **Soil-aware tips** from SoilGrids topsoil sand, clay and pH at your coordinates.
+- **Irrigation planner** (an estimate): a 7-day water balance from forecast evapotranspiration and rain.
+- **Heat-stress alerts** for any day above 35 °C, and **fertiliser timing** (delay if heavy rain is likely in the next 48 h).
+- A **72-hour strip** of hour cells coloured by spraying safety, and big-number **field status** tiles.
+- **Saved fields** (up to 5, on the device), a **Copy summary / Share on WhatsApp** card, and the **last-known answer** when live data fails.
 - A **"why" section** that shows every data point used, with its **source and fetch time**, and the rule that was applied.
 
 > Built for the Climate, Resource Infrastructure & Global Supply Resilience buildathon (problem: Multilingual Agritech & Resource Advisory Assistant).
@@ -51,7 +55,7 @@ Open-Meteo's free tier allows 600 calls per minute, 5,000 per hour and 10,000 pe
 
 - **One forecast request per place**: the 72-hour forecast and this month's past daily rain come from one call (`past_days`). Cached for 60 minutes per location (coordinates rounded to 2 decimals).
 - **Rainfall baseline built in the background, once per district**: one archive request for the whole period (2000-01-01 to the last full year's 12-31, `daily=precipitation_sum`). The daily values, the years used and the build time are saved to `backend/data/baselines.json` and loaded at startup; the deficit rule averages the same calendar dates from it. At startup the default district (Dharwad) is built if missing; a question for a district with no baseline yet gets "the rainfall baseline for … is not available yet; it is being built now" and the build is queued. Builds run one at a time, at least 70 s apart; a failed build is retried after 10 minutes; baselines are rebuilt after 30 days. The single 26-year request weighs about 680 Open-Meteo calls (more than the 600-per-minute limit), which is why builds are rare, spaced out and never part of a question. On Render's free plan the disk is reset on each deploy or restart, so the default district is rebuilt in the background after that.
-- **SoilGrids responses are cached for 30 days per coordinate pair** and saved to `backend/data/soil_cache.json`. If SoilGrids fails (for example HTTP 503), the saved copy is shown with its fetch time; without one, the answer says soil data is temporarily unavailable. The 60 s backoff applies only to Open-Meteo 429s, not to SoilGrids or Gemini.
+- **SoilGrids responses are cached for 7 days per coordinate pair** and saved to `backend/.cache/soil_cache.json` (`backend/data/` holds only the rainfall baseline). If SoilGrids fails (for example HTTP 503), the saved copy is shown with its fetch time; without one, the answer says soil data is temporarily unavailable. The 60 s backoff applies only to Open-Meteo 429s, not to SoilGrids or Gemini.
 - **One Open-Meteo call at a time**, and identical requests that arrive together share one call.
 - **HTTP 429 is never retried straight away.** No Open-Meteo call is sent for `Retry-After` seconds, or at least 60 s, and the last good data is shown instead, labelled with its fetch time.
 - **Every external call is logged** with provider, path, location, status and duration, for example `fetch open-meteo /v1/forecast latitude=15.46 longitude=75.01 past_days=30 -> 200 in 858 ms`; skipped calls are logged as `skip ... rate-limit backoff`.
@@ -65,8 +69,10 @@ backend/
     config.py        all thresholds, URLs, timeouts, cache TTLs
     http.py          fetch with timeout + 1 retry, caching, SourceResult
     cache.py         TTL cache that keeps fetch time
-    sources/         geocode, forecast, rainfall (MTD + baseline), soil
-    rules/           spray, heavy_rain, deficit, soil
+    sources/         geocode, forecast (hourly + daily, one request), rainfall helpers, soil
+    rules/           spray, heavy_rain, deficit, soil, irrigation, heat, fertiliser
+    baseline.py      per-district rainfall baseline: background build, saved to data/
+    today.py         "Today in your field" summary (landing card, saved fields), cached 1 h per location
     evidence.py      data points + rule outcomes with source and time
     prompts.py       system prompt + JSON output schema
     llm.py           Gemini call (JSON schema output, fallback model on rate limit)
@@ -75,12 +81,14 @@ backend/
     language.py      script-based language detection
     advisor.py       orchestration for one request
     main.py          FastAPI app and routes, serves the built frontend (web/out)
-  tests/             71 tests; fixtures are real API responses (tests only, never imported by app/)
+  tests/             111 tests; fixtures are real API responses (tests only, never imported by app/)
+  devtools/          USE_FIXTURES=1 local dev server (never used in deployment)
 web/                 Next.js (App Router, TypeScript, Tailwind), built as a static export
-  app/page.tsx         landing page (shader background, TextRoll title, "Get advice")
-  app/advice/page.tsx  advice page
-  components/          ShaderBackground, TextRoll, AdviceApp, ForecastChart, AttributionFooter
-  lib/                 API client, types, EN/HI/KN labels, formatting, voice
+  app/page.tsx         landing page (shader background, TextRoll title, live "Today in your field" card)
+  app/advice/page.tsx  advice dashboard
+  components/          AdviceApp, AdviceResult, StatTiles, HourStrip, FieldPlanner, SavedFields, ShareBar,
+                       SourceFooter, TodayCard, MicButton, ShaderBackground, TextRoll, AttributionFooter
+  lib/                 API client, types, EN/HI/KN labels, formatting, device storage, voice
 render.yaml          deployment blueprint (no secrets)
 ```
 
@@ -91,10 +99,10 @@ render.yaml          deployment blueprint (no secrets)
 | Data | Source | Notes |
 |---|---|---|
 | Place → coordinates | [Open-Meteo Geocoding API](https://open-meteo.com/en/docs/geocoding-api) | Filtered to Karnataka, larger towns first |
-| 72-hour hourly forecast | [Open-Meteo Forecast API](https://open-meteo.com/en/docs) | `temperature_2m, relative_humidity_2m, precipitation_probability, precipitation, wind_speed_10m`, `timezone=Asia/Kolkata`, `forecast_days=3` |
-| Month-to-date rainfall | Open-Meteo Forecast API (`start_date`/`end_date`, `daily=precipitation_sum`) | Recent days without the archive's ~5-day lag |
+| 72-hour hourly forecast | [Open-Meteo Forecast API](https://open-meteo.com/en/docs) | hourly `temperature_2m, relative_humidity_2m, precipitation_probability, precipitation, wind_speed_10m`, `forecast_hours=72`, `timezone=Asia/Kolkata` |
+| Daily forecast and month-to-date rain | Same request (no extra call) | daily `precipitation_sum, et0_fao_evapotranspiration, temperature_2m_max`, `forecast_days=7`, `past_days` back to the 1st of the month. Cached 60 min per location |
 | Long-run rainfall baseline | [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api) | 2000 to last full year, same calendar dates; one request per district, built in the background, saved to `backend/data/baselines.json`, rebuilt after 30 days |
-| Topsoil properties | [ISRIC SoilGrids v2.0](https://rest.isric.org/soilgrids/v2.0/docs) | `clay, sand, phh2o, soc`, `depth=0-5cm`, `value=mean`; cached 30 days per coordinate pair, saved to `backend/data/soil_cache.json` |
+| Topsoil properties | [ISRIC SoilGrids v2.0](https://rest.isric.org/soilgrids/v2.0/docs) | `clay, sand, phh2o, soc`, `depth=0-5cm`, `value=mean`; cached 7 days per coordinate pair, saved to `backend/.cache/soil_cache.json`; on a 503 the saved copy is shown with its fetch time |
 | Answer writing | [Google Gemini API](https://ai.google.dev/) | Uses only the data above. Free tier: prompts may be used by Google to improve its products, so only public weather/soil data and the question are sent. |
 | Voice questions (optional) | Google Gemini API (audio input) | Only when the farmer taps **Speak**. The recording is sent to Gemini for transcription and is not stored by YieldGuard. Same free-tier caveat as above. |
 
@@ -120,16 +128,38 @@ All thresholds are in [`backend/app/config.py`](backend/app/config.py) and also 
 | Heavy rain | Next 24 h: any hour `precipitation_probability > 70%` OR total rain `> 40 mm` | Postpone field work, check drainage |
 | Rainfall deficit | Month-to-date rain (1st to yesterday) as % of the 2000–2025 mean for the same dates. On the 1st, the previous full month is used. | `< 60%` drought risk, `> 150%` waterlogging risk. If normal rain is below 5 mm (dry season), no % is given. |
 | Soil | sand `> 60%`; clay `> 40%`; pH `< 5.5` or `> 8.5` | Lighter, more frequent irrigation; caution in heavy rain; get a soil test |
+| Irrigation planner (estimate) | For each of the next 7 days: crop use = `et0_fao_evapotranspiration × CROP_FACTOR` (0.85); running deficit = previous deficit + crop use − rain, never below 0, starting at 0 today | Irrigate on the first day the deficit exceeds `IRRIGATION_DEFICIT_MM` (25 mm). Labelled an estimate; the calculation is shown in "Why this advice" |
+| Heat stress | `temperature_2m_max > HEAT_THRESHOLD_C` (35 °C) on any of the next 7 days | Amber alert with the date: irrigate early or late, avoid afternoon spraying, shade and water for animals |
+| Fertiliser timing | Next 48 h (`FERTILISER_LOOKAHEAD_H`): any hour `precipitation_probability > 70%` OR total rain `> 40 mm` | Delay fertiliser: rain soon after application leaches nutrients below the roots or washes them off the field |
+
+### Config values (`backend/app/config.py`, each commented in the file)
+
+| Setting | Value | Meaning |
+|---|---|---|
+| `SPRAY_MAX_WIND_KMH` / `SPRAY_MAX_PRECIP_PROB_PCT` / `SPRAY_MAX_PRECIP_MM` | 10 / 20 / 0 | spray-window weather limits |
+| `SPRAY_MIN_HOURS` / `SPRAY_MAX_WINDOWS` / `SPRAY_ALLOWED_HOURS` | 3 / 3 / 06–19 | window length, how many, daylight only |
+| `HEAVY_RAIN_PROB_PCT` / `HEAVY_RAIN_TOTAL_MM` / `HEAVY_RAIN_LOOKAHEAD_H` | 70 / 40 / 24 | heavy-rain warning |
+| `FERTILISER_RAIN_PROB_PCT` / `FERTILISER_RAIN_TOTAL_MM` / `FERTILISER_LOOKAHEAD_H` | 70 / 40 / 48 | fertiliser delay |
+| `DEFICIT_DROUGHT_PCT` / `DEFICIT_WATERLOG_PCT` / `DEFICIT_MIN_BASELINE_MM` | 60 / 150 / 5 | rainfall vs normal |
+| `HEAT_THRESHOLD_C` | 35 | heat-stress day |
+| `CROP_FACTOR` / `IRRIGATION_DEFICIT_MM` / `FORECAST_DAILY_DAYS` | 0.85 / 25 / 7 | water balance |
+| `SOIL_SAND_HIGH_PCT` / `SOIL_CLAY_HIGH_PCT` / `SOIL_PH_LOW` / `SOIL_PH_HIGH` | 60 / 40 / 5.5 / 8.5 | soil flags |
+| `TTL_FORECAST` / `TTL_TODAY` / `TTL_SOIL` / `TTL_BASELINE` | 1 h / 1 h / 7 days / 30 days | caches |
+| `RATE_LIMIT_BACKOFF_S` | 60 | Open-Meteo-only pause after HTTP 429 |
 
 ---
 
 ## Frontend
 
 - **Framework:** Next.js 16 (App Router, TypeScript, Tailwind CSS v4) with `output: "export"`. `npm run build` writes plain HTML/JS/CSS to `web/out`, which FastAPI serves, so the site and the API share one URL and need no CORS setup.
-- **Theme "Sage Garden"** (tokens in [`web/app/globals.css`](web/app/globals.css)): primary `#7d9a86`, background `#111111`, card `#1a1a1a`, border `#2a2a2a`, muted text `#a3a8a4` (7.8:1 on the background), amber `#d97706` for drought, waterlogging, heavy-rain and soil warnings, red `#ef4444` only for errors and failed sources. Radius `0.5rem`. All text colours pass WCAG AA.
-- **Landing (`/`):** a static mesh-gradient WebGL background ([`ShaderBackground.tsx`](web/components/ShaderBackground.tsx), built on [Paper Shaders](https://github.com/paper-design/shaders), Apache-2.0), the title animated once per page load with [`TextRoll.tsx`](web/components/TextRoll.tsx) (using [`motion`](https://motion.dev)), the tagline "From sky to soil, every season", and a "Get advice" button.
+- **Design: a field-status dashboard.** Theme "Sage Garden" (all colours are CSS variables in [`web/app/globals.css`](web/app/globals.css)): primary `#7d9a86`, background `#111111`, card `#1a1a1a`, border `#2a2a2a`, muted text `#a3a8a4` (7.8:1), amber `#d97706` for drought, waterlogging, heat, heavy-rain and fertiliser warnings, red `#ef4444` only for errors. All text colours pass WCAG AA. Fonts via `next/font`: Inter for Latin text, Noto Sans Kannada and Noto Sans Devanagari for the other scripts; body text 16 px, large numbers for temperature, rain chance, wind and soil. One column on phones, two on wider screens; touch targets at least 44 px.
+- **Landing (`/`):** a static mesh-gradient WebGL background ([`ShaderBackground.tsx`](web/components/ShaderBackground.tsx), built on [Paper Shaders](https://github.com/paper-design/shaders), Apache-2.0), the title animated once per page load with [`TextRoll.tsx`](web/components/TextRoll.tsx) (using [`motion`](https://motion.dev)), the tagline "From sky to soil, every season", and a live **"Today in your field"** card for the selected saved field (default Dharwad): the next spray window, the rain chance for the next 24 h and the soil summary, each with its time and source. It reads `GET /api/today`, which the server caches for one hour per location, so a location is refreshed from the APIs at most once an hour.
+- **72-hour strip:** 72 hour cells, sage = safe to spray (wind and rain below the spray limits), amber = risky, red = data missing. Tap a cell for its wind, rain chance, rain, temperature and humidity, with source and fetch time.
+- **Saved fields:** up to 5 places stored in `localStorage` (every access in `try/catch`, so the app still works when storage is blocked). Each shows its next spray window and warnings from `/api/today`; one tap switches field (and re-asks if a question is typed). No accounts, no database.
+- **Copy summary / Share on WhatsApp:** plain text with the place, the advice in the selected language, fetch times and sources; the WhatsApp link is `https://wa.me/?text=` with the encoded summary.
+- **Last-known answer:** the last answer for each place is kept on the device. If the live request fails, or a source fails, the saved answer is shown with "Last updated … ago" and the name of the failed source.
 - **Voice input:** tap **Speak**, say the question, tap **Stop** (auto-stops after 30 s). The browser records with `MediaRecorder`, shows the input level, rejects silent recordings locally ("check that the right microphone is selected"), converts the audio to 16 kHz mono WAV, and posts it to `/api/transcribe`, where Gemini transcribes it in English, Hindi (Devanagari) or Kannada (Kannada script). The text goes into the question box so the farmer can check it before asking. This replaced the browser's `SpeechRecognition`, which sends audio to Google from Chrome only, fails in Brave and Opera, and has patchy Kannada support.
-- **Advice (`/advice/`):** location (default Dharwad, with Karnataka place suggestions and GPS), question, language (Auto / English / हिन्दी / ಕನ್ನಡ), a **Speak** button for voice questions, and a **Listen** button that reads the answer aloud when the browser has a voice for that language. It shows loading, empty and error states, a red notice for each failed source saying which part of the answer is missing, amber warnings, the answer with a "Why this advice" section, the rules applied, a 72-hour chart, a table with value, data date, source and fetch time for every number, and the attribution footer.
+- **Advice (`/advice/`):** location (default Dharwad, with Karnataka place suggestions and GPS), question, language (Auto / English / हिन्दी / ಕನ್ನಡ), a **Speak** button for voice questions, and a **Listen** button that reads the answer aloud when the browser has a voice for that language. It shows loading, empty and error states, a red notice for each failed source saying which part of the answer is missing, amber warnings, the answer with a "Why this advice" section, the rules applied, the 72-hour strip, the irrigation planner, heat and fertiliser cards, a table with value, data date, source and fetch time for every number, and the attribution footer.
 
 ## Run locally
 
@@ -179,6 +209,7 @@ Demo link format: `/advice/?location=Hubballi&q=Can+I+spray+tomorrow%3F&lang=kn`
 | `GET /api/advice?q=…&location=…&lang=auto\|en\|hi\|kn` (or `&lat=…&lon=…`) | Full answer with data points, rules, sources, timestamps |
 | `GET /advice?location=…&question=…&lang=en\|hi\|kn` | Same JSON as `/api/advice`. Without `question`, `/advice` serves the advice page. |
 | `POST /api/transcribe?lang=auto\|en\|hi\|kn` | Body: 16-bit PCM WAV (max 30 s). Returns `{text, language, model, transcribed_at}` |
+| `GET /api/today?location=…` (or `&lat=…&lon=…`) | "Today in your field": next spray window, rain chance next 24 h, soil summary, warnings, with fetch times. Cached 1 h per location; no language model |
 | `GET /api/locations?q=…` | Karnataka place search |
 | `GET /api/rules` | Thresholds in use |
 | `GET /api/health` | Status, whether the LLM key is configured (never the key itself), and which rainfall baselines are stored, building or failed. Calls no external service. |
@@ -207,6 +238,7 @@ Errors return JSON `{"error": {"code", "message"}}`: `404 location_not_found`, `
 | `LOG_LEVEL` | No | `INFO` | Server log level |
 | `PYTHON_VERSION`, `NODE_VERSION` | Render only | `3.12.8`, `22.12.0` | Set in `render.yaml` |
 | `NEXT_PUBLIC_API_BASE` | No | same origin | Only for hosting the frontend separately from the API |
+| `YIELDGUARD_DATA_DIR` / `YIELDGUARD_CACHE_DIR` | No | `backend/data`, `backend/.cache` | Where the rainfall baseline and the SoilGrids cache are saved |
 
 ## Security
 

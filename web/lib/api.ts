@@ -1,4 +1,4 @@
-import type { AdviceResponse, PlaceSuggestion } from "./types";
+import type { AdviceResponse, PlaceSuggestion, TodaySummary } from "./types";
 
 // In production the page is served by the FastAPI backend, so API calls are same-origin.
 // During `next dev` (port 3000) the backend runs separately on port 8000.
@@ -12,15 +12,16 @@ export class ApiError extends Error {
     public kind: "server" | "network" | "timeout",
     message: string,
     public status?: number,
+    public code?: string, // backend error code, e.g. "geocoding_failed", "location_not_found"
   ) {
     super(message);
   }
 }
 
-export async function fetchAdvice(params: URLSearchParams, signal: AbortSignal): Promise<AdviceResponse> {
+async function getJson<T>(path: string, signal: AbortSignal): Promise<T> {
   let r: Response;
   try {
-    r = await fetch(`${API_BASE}/api/advice?${params}`, { signal });
+    r = await fetch(`${API_BASE}${path}`, { signal });
   } catch (err) {
     if ((err as Error).name === "AbortError") throw new ApiError("timeout", "timeout");
     throw new ApiError("network", "network");
@@ -32,10 +33,25 @@ export async function fetchAdvice(params: URLSearchParams, signal: AbortSignal):
     /* non-JSON error page (e.g. proxy error while the server wakes up) */
   }
   if (!r.ok) {
-    const msg = (body as { error?: { message?: string } } | null)?.error?.message;
-    throw new ApiError("server", msg || `Server error (${r.status}). Please try again.`, r.status);
+    const err = (body as { error?: { message?: string; code?: string } } | null)?.error;
+    throw new ApiError("server", err?.message || `Server error (${r.status}). Please try again.`, r.status, err?.code);
   }
-  return body as AdviceResponse;
+  return body as T;
+}
+
+export function fetchAdvice(params: URLSearchParams, signal: AbortSignal): Promise<AdviceResponse> {
+  return getJson<AdviceResponse>(`/api/advice?${params}`, signal);
+}
+
+/** Landing card and saved-field status. The server caches each location for one hour. */
+export function fetchToday(where: { location?: string; lat?: number; lon?: number }, signal: AbortSignal) {
+  const p = new URLSearchParams();
+  if (where.lat != null && where.lon != null) {
+    p.set("lat", String(where.lat));
+    p.set("lon", String(where.lon));
+  }
+  if (where.location) p.set("location", where.location);
+  return getJson<TodaySummary>(`/api/today?${p}`, signal);
 }
 
 export async function searchPlaces(q: string, signal: AbortSignal): Promise<PlaceSuggestion[]> {

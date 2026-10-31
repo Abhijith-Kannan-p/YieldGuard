@@ -46,9 +46,9 @@ def _load(name: str):
 
 
 MANIFEST = _load("manifest.json")
-CAPTURED_AT = datetime.fromisoformat(MANIFEST["forecast_pastdays_dharwad.json"]["captured_at"])
+CAPTURED_AT = datetime.fromisoformat(MANIFEST["forecast_full_dharwad.json"]["captured_at"])
 _GEOCODE = _load("geocode_dharwad.json")
-_FORECAST = _load("forecast_pastdays_dharwad.json")
+_FORECAST = _load("forecast_full_dharwad.json")
 _ARCHIVE = _load("archive_dharwad_2000_2025.json")
 _SOIL = _load("soil_dharwad_nearby.json")
 

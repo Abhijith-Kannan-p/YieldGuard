@@ -30,7 +30,14 @@ FORECAST_HOURLY_VARS = [
     "precipitation",
     "wind_speed_10m",
 ]
-FORECAST_DAYS = 3
+# One forecast request returns all of these (see sources/forecast.py):
+FORECAST_HOURS = 72                # hourly data from the current hour: spray windows, 72-hour strip, rain rules
+FORECAST_DAILY_VARS = [            # daily data: month-to-date rain, irrigation planner, heat alert
+    "precipitation_sum",
+    "et0_fao_evapotranspiration",
+    "temperature_2m_max",
+]
+FORECAST_DAILY_DAYS = 7            # daily forecast days (today + 6) for the irrigation planner and heat alert
 
 SOIL_PROPERTIES = ["clay", "sand", "phh2o", "soc"]
 SOIL_DEPTH = "0-5cm"
@@ -69,13 +76,16 @@ CACHE_COORD_DECIMALS = 2      # cache key precision for lat/lon (~1 km)
 TTL_GEOCODE = 7 * 24 * 3600
 TTL_FORECAST = 60 * 60        # forecast + recent past rain (one request), per location
 TTL_BASELINE = 30 * 24 * 3600 # rebuild a district's baseline in the background after this
-TTL_SOIL = 30 * 24 * 3600     # per coordinate pair (rounded to 2 decimals)
+TTL_SOIL = 7 * 24 * 3600      # per coordinate pair (rounded to 2 decimals); older copies are still used on a 503
+TTL_TODAY = 60 * 60           # landing-page "Today in your field" summary, per location
 
 # Saved data, loaded at startup so a restart does not refetch it. On hosts with an ephemeral
 # disk (Render's free plan) the files last until the next deploy or restart.
+# data/ holds only the rainfall baseline; other caches live in .cache/.
 DATA_DIR = Path(os.getenv("YIELDGUARD_DATA_DIR", Path(__file__).resolve().parents[1] / "data"))
 BASELINE_FILE = DATA_DIR / "baselines.json"
-SOIL_CACHE_FILE = DATA_DIR / "soil_cache.json"
+CACHE_DIR = Path(os.getenv("YIELDGUARD_CACHE_DIR", Path(__file__).resolve().parents[1] / ".cache"))
+SOIL_CACHE_FILE = CACHE_DIR / "soil_cache.json"
 
 # If a live refresh fails (rate limit, outage), the last good response may be shown instead,
 # labelled as such and with its original fetch time, as long as it is no older than this.
@@ -99,7 +109,7 @@ SPRAY_ALLOWED_HOURS = (6, 19)
 # ---------------------------------------------------------------------------
 # RULE: heavy rain warning (next 24 h)
 # ---------------------------------------------------------------------------
-HEAVY_RAIN_LOOKAHEAD_H = 24
+HEAVY_RAIN_LOOKAHEAD_H = 24        # hours of forecast checked
 HEAVY_RAIN_PROB_PCT = 70.0         # any hour above this -> warning
 HEAVY_RAIN_TOTAL_MM = 40.0         # 24 h total above this -> warning
 
@@ -115,10 +125,29 @@ DEFICIT_MIN_BASELINE_MM = 5.0      # if normal is below this, % is unreliable (d
 # ---------------------------------------------------------------------------
 # RULE: soil
 # ---------------------------------------------------------------------------
-SOIL_SAND_HIGH_PCT = 60.0
-SOIL_CLAY_HIGH_PCT = 40.0
-SOIL_PH_LOW = 5.5
-SOIL_PH_HIGH = 8.5
+SOIL_SAND_HIGH_PCT = 60.0          # sand above this % -> lighter, more frequent irrigation
+SOIL_CLAY_HIGH_PCT = 40.0          # clay above this % -> caution during heavy rain (slow drainage)
+SOIL_PH_LOW = 5.5                  # pH below this -> mention it and suggest a soil test
+SOIL_PH_HIGH = 8.5                 # pH above this -> mention it and suggest a soil test
+
+# ---------------------------------------------------------------------------
+# RULE: irrigation planner (daily water balance, next FORECAST_DAILY_DAYS days) - an estimate
+#   deficit(day) = max(0, deficit(day before) + ET0 x CROP_FACTOR - rain), starting at 0 today
+# ---------------------------------------------------------------------------
+CROP_FACTOR = 0.85                 # Kc: crop water use as a fraction of reference ET0 (generic field crop, mid-season)
+IRRIGATION_DEFICIT_MM = 25.0       # suggest irrigating on the first day the running deficit exceeds this (mm)
+
+# ---------------------------------------------------------------------------
+# RULE: heat stress (daily maximum temperature, next FORECAST_DAILY_DAYS days)
+# ---------------------------------------------------------------------------
+HEAT_THRESHOLD_C = 35.0            # flag any day whose temperature_2m_max is above this (deg C)
+
+# ---------------------------------------------------------------------------
+# RULE: fertiliser timing (next 48 h) - rain soon after application leaches nutrients
+# ---------------------------------------------------------------------------
+FERTILISER_LOOKAHEAD_H = 48        # hours of forecast checked
+FERTILISER_RAIN_PROB_PCT = 70.0    # any hour above this rain probability -> delay fertiliser
+FERTILISER_RAIN_TOTAL_MM = 40.0    # total forecast rain above this (mm) -> delay fertiliser
 
 # ---------------------------------------------------------------------------
 # Language model

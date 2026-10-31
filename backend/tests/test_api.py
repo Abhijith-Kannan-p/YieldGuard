@@ -90,7 +90,7 @@ def test_rules_reference_existing_data_points(live):
     ids = {p["id"] for p in body["data_points"]}
     for rule in body["rules"]:
         assert set(rule["evidence"]) <= ids
-    assert {r["id"] for r in body["rules"]} == {"spray_window", "heavy_rain", "rain_deficit", "soil"}
+    assert {r["id"] for r in body["rules"]} == {"spray_window", "heavy_rain", "rain_deficit", "soil", "irrigation", "heat", "fertiliser"}
 
 
 def test_language_follows_question(live):

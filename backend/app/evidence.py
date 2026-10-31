@@ -179,6 +179,87 @@ def add_soil(ev: Evidence, soil: SourceResult, res: dict):
     ev.rule("soil", "Soil", res["status"], summary, t, ["soil_sand", "soil_clay", "soil_ph", "soil_offset"])
 
 
+def _short_date(d: str) -> str:
+    return parse_local(d).strftime("%d %b").lstrip("0")
+
+
+def add_irrigation(ev: Evidence, fc: SourceResult, res: dict | None):
+    if not fc.ok or res is None or res["status"] == "unknown":
+        ev.rule("irrigation", "Irrigation planner (estimate)", "unknown",
+                "Forecast evapotranspiration or rain unavailable, so the water balance could not be estimated.", {}, [])
+        return
+    t, days = res["thresholds"], res["days"]
+    span = f"{days[0]['date']} to {days[-1]['date']}"
+    ids = []
+    for i, d in enumerate(days, 1):
+        pid = f"wb_day_{i}"
+        ev.add(pid, f"Water balance {_short_date(d['date'])}",
+               f"ET0 {d['et0_mm']} mm x {t['crop_factor']:g} = {d['crop_use_mm']} mm used, rain {d['rain_mm']} mm, "
+               f"running deficit {d['deficit_mm']} mm", "", fc, d["date"])
+        ids.append(pid)
+    ev.add("wb_crop_use_total", "Estimated crop water use, next days (ET0 x crop factor)", res["total_crop_use_mm"],
+           "mm", fc, span)
+    ev.add("wb_rain_total", "Forecast rain, next days", res["total_rain_mm"], "mm", fc, span)
+    ev.add("wb_deficit_final", "Running water deficit at end of period", res["final_deficit_mm"], "mm", fc,
+           days[-1]["date"])
+    calc = (f"Estimate. Daily crop water use = ET0 x crop factor {t['crop_factor']:g}; running deficit = previous "
+            f"deficit + crop use - rain (never below 0), starting at 0 today; irrigate when it exceeds "
+            f"{t['deficit_mm']:g} mm")
+    if res["irrigate_on"]:
+        summary = f"Irrigation suggested on {res['irrigate_on']}, when the deficit first exceeds the threshold. {calc}."
+    else:
+        summary = (f"No irrigation needed in the next {len(days)} days: the deficit stays at or below "
+                   f"{t['deficit_mm']:g} mm (reaches {res['final_deficit_mm']} mm). {calc}.")
+    if res["incomplete_from"]:
+        summary += f" Forecast data missing from {res['incomplete_from']}, so the balance stops there."
+    ev.rule("irrigation", "Irrigation planner (estimate)", res["status"], summary, t,
+            ids + ["wb_crop_use_total", "wb_rain_total", "wb_deficit_final"])
+
+
+def add_heat(ev: Evidence, fc: SourceResult, res: dict | None):
+    if not fc.ok or res is None or res["status"] == "unknown":
+        ev.rule("heat", "Heat stress", "unknown", "Daily maximum temperature unavailable.", {}, [])
+        return
+    t = res["thresholds"]
+    ev.add("tmax_peak", "Highest daily maximum temperature, next days", res["max_tmax_c"], "°C", fc,
+           res["max_tmax_date"])
+    ids = []
+    for i, d in enumerate(res["hot_days"], 1):
+        pid = f"heat_day_{i}"
+        ev.add(pid, f"Daily maximum temperature {_short_date(d['date'])}", d["tmax_c"], "°C", fc, d["date"])
+        ids.append(pid)
+    if res["hot_days"]:
+        dates = ", ".join(d["date"] for d in res["hot_days"])
+        summary = (f"Heat stress likely on {dates} (daily maximum above {t['tmax_c']:g} °C). Irrigate early in the "
+                   f"morning or evening, avoid spraying in the afternoon heat, and give animals shade and water.")
+    else:
+        summary = (f"No day above {t['tmax_c']:g} °C from {res['first_date']} to {res['last_date']} "
+                   f"(highest {res['max_tmax_c']} °C on {res['max_tmax_date']}).")
+    ev.rule("heat", "Heat stress", res["status"], summary, t, ids + ["tmax_peak"])
+
+
+def add_fertiliser(ev: Evidence, fc: SourceResult, res: dict | None):
+    if not fc.ok or res is None or res["status"] == "unknown":
+        ev.rule("fertiliser", "Fertiliser timing", "unknown", "Forecast unavailable for the next 48 hours.", {}, [])
+        return
+    t = res["thresholds"]
+    span = f"{res['window_start']} to {res['window_end']}"
+    if res["max_precip_prob_pct"] is not None:
+        ev.add("fert_max_prob", f"Highest rain probability, next {t['lookahead_h']} h", res["max_precip_prob_pct"],
+               "%", fc, res["max_precip_prob_time"])
+    if res["total_precip_mm"] is not None:
+        ev.add("fert_rain_total", f"Total forecast rain, next {t['lookahead_h']} h", res["total_precip_mm"], "mm", fc,
+               span)
+    rule_text = (f"delay if rain probability > {t['prob_pct']:g}% or total rain > {t['total_mm']:g} mm in the next "
+                 f"{t['lookahead_h']} h")
+    if res["status"] == "delay":
+        summary = (f"Delay fertiliser: rain soon after application washes nutrients below the roots or off the field "
+                   f"(leaching), wasting fertiliser and polluting water ({rule_text}).")
+    else:
+        summary = f"No heavy rain expected in the next {t['lookahead_h']} h; fertiliser can be applied ({rule_text})."
+    ev.rule("fertiliser", "Fertiliser timing", res["status"], summary, t, ["fert_max_prob", "fert_rain_total"])
+
+
 def data_lookup(ev: Evidence) -> dict[str, dict]:
     return {p["id"]: p for p in ev.points}
 
@@ -191,5 +272,5 @@ def all_values(ev: Evidence, extra: list | None = None) -> list:
     for r in ev.rules:
         vals += [v for v in r["thresholds"].values() if not isinstance(v, (list, dict))]
         vals += [x for v in r["thresholds"].values() if isinstance(v, list) for x in v]
-    vals += [config.SPRAY_MIN_HOURS, config.HEAVY_RAIN_LOOKAHEAD_H, config.FORECAST_DAYS * 24]
+    vals += [config.SPRAY_MIN_HOURS, config.HEAVY_RAIN_LOOKAHEAD_H, config.FORECAST_HOURS, config.FERTILISER_LOOKAHEAD_H, config.FORECAST_DAILY_DAYS]
     return vals + (extra or [])

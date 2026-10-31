@@ -1,5 +1,9 @@
-"""Open-Meteo forecast: the next 72 hours (hourly) plus recent past days (daily rain),
-fetched in ONE request using past_days, so month-to-date rainfall costs no extra call."""
+"""Open-Meteo forecast in ONE request:
+- hourly: the next FORECAST_HOURS hours from the current hour (forecast_hours / past_hours=0)
+- daily: precipitation_sum, et0_fao_evapotranspiration and temperature_2m_max for the past days
+  of this month (past_days, for month-to-date rain) and the next FORECAST_DAILY_DAYS days
+  (irrigation planner, heat alert).
+Month-to-date rain, the water balance and the heat check therefore cost no extra call."""
 from datetime import date
 
 from .. import config
@@ -7,6 +11,19 @@ from ..http import SourceResult, cached_fetch, coord_key, get_json
 from .rainfall import parse_daily
 
 NAME = "Open-Meteo Forecast API"
+
+
+def parse_daily_vars(payload: dict) -> list[dict]:
+    """Daily columns as a list of {"date", "precipitation_sum", "et0_fao_evapotranspiration", ...}."""
+    daily = payload.get("daily") or {}
+    rows = []
+    for i, t in enumerate(daily.get("time") or []):
+        row = {"date": t}
+        for var in config.FORECAST_DAILY_VARS:
+            col = daily.get(var) or []
+            row[var] = col[i] if i < len(col) else None
+        rows.append(row)
+    return rows
 
 
 def parse_hourly(payload: dict, from_date: str | None = None) -> dict:
@@ -36,18 +53,22 @@ def parse_hourly(payload: dict, from_date: str | None = None) -> dict:
 
 
 async def fetch(lat: float, lon: float, past_from: date, today: date) -> SourceResult:
-    """Hourly forecast from today, plus daily rain from `past_from` (the rainfall-deficit window start).
+    """Hourly forecast from now, plus daily data from `past_from` (the rainfall-deficit window start)
+    to FORECAST_DAILY_DAYS days ahead.
 
-    Result data: hours, units, daily ({date: mm}), past_from. Cached per location for TTL_FORECAST.
+    Result data: hours, units, daily ({date: rain mm}), days (list of daily rows from today),
+    daily_units, past_from. Cached per location for TTL_FORECAST.
     """
     past_days = max(0, (today - past_from).days)
     params = {
         "latitude": lat,
         "longitude": lon,
         "hourly": ",".join(config.FORECAST_HOURLY_VARS),
-        "daily": "precipitation_sum",
+        "daily": ",".join(config.FORECAST_DAILY_VARS),
         "timezone": config.TIMEZONE,
-        "forecast_days": config.FORECAST_DAYS,
+        "forecast_hours": config.FORECAST_HOURS + 1,  # Open-Meteo's "current hour" can trail ours by one
+        "past_hours": 0,
+        "forecast_days": config.FORECAST_DAILY_DAYS,
         "past_days": past_days,
     }
 
@@ -55,6 +76,8 @@ async def fetch(lat: float, lon: float, past_from: date, today: date) -> SourceR
         payload = await get_json(config.FORECAST_URL, params)
         data = parse_hourly(payload, from_date=today.isoformat())
         data["daily"] = parse_daily(payload)
+        data["days"] = [d for d in parse_daily_vars(payload) if d["date"] >= today.isoformat()]
+        data["daily_units"] = payload.get("daily_units", {})
         data["past_from"] = past_from.isoformat()
         return data
 

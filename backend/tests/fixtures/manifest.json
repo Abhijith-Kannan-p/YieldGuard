@@ -5,11 +5,6 @@
   "source": "Open-Meteo Geocoding API",
   "query": "name=Dharwad"
  },
- "forecast_pastdays_dharwad.json": {
-  "captured_at": "2026-10-31T09:19:06+05:30",
-  "source": "Open-Meteo Forecast API",
-  "query": "lat=15.46005 lon=75.00778 forecast_days=3 past_days=30"
- },
  "archive_dharwad_2000_2025.json": {
   "source": "Open-Meteo Historical Weather (Archive) API",
   "query": "2000-01-01 to 2025-12-31 daily precipitation_sum"
@@ -21,5 +16,10 @@
  "soil_dharwad_nearby.json": {
   "source": "ISRIC SoilGrids v2.0",
   "query": "2.2 km north of Dharwad centre"
+ },
+ "forecast_full_dharwad.json": {
+  "captured_at": "2026-10-31T18:13:29+05:30",
+  "source": "Open-Meteo Forecast API",
+  "query": "lat=15.46005 lon=75.00778 hourly 5 vars forecast_hours=72 past_hours=0; daily precipitation_sum, et0_fao_evapotranspiration, temperature_2m_max forecast_days=7 past_days=30"
  }
 }

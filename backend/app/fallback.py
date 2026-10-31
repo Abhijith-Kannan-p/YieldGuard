@@ -20,6 +20,10 @@ T = {
         "high_clay": "Clay soil drains slowly: take care during heavy rain.",
         "ph": "Soil pH is {ph}, outside the usual range. Consider a soil test.",
         "missing": "{name}: data not available right now.",
+        "irrigate": "Estimated water balance: the soil water deficit passes {mm} mm on {date}. Plan to irrigate then (estimate).",
+        "irrigate_ok": "Estimated water balance: no irrigation needed in the next {days} days.",
+        "heat": "Heat stress expected on {dates} (above {t} °C). Irrigate early morning or evening, avoid afternoon spraying.",
+        "fert_delay": "Delay fertiliser: rain is likely in the next {h} hours (up to {prob}% chance), which washes nutrients away.",
         "disclaimer": "Please confirm with your local Krishi Vigyan Kendra (KVK) or agriculture officer before acting.",
     },
     "hi": {
@@ -36,6 +40,10 @@ T = {
         "high_clay": "चिकनी मिट्टी में पानी धीरे निकलता है: भारी बारिश में सावधानी रखें।",
         "ph": "मिट्टी का pH {ph} है, जो सामान्य सीमा से बाहर है। मिट्टी की जाँच करवाएं।",
         "missing": "{name}: अभी डेटा उपलब्ध नहीं है।",
+        "irrigate": "अनुमानित जल संतुलन: {date} को मिट्टी में पानी की कमी {mm} मिमी से ज़्यादा हो जाएगी। उसी दिन सिंचाई की योजना बनाएं (अनुमान)।",
+        "irrigate_ok": "अनुमानित जल संतुलन: अगले {days} दिनों में सिंचाई की ज़रूरत नहीं।",
+        "heat": "{dates} को गर्मी का तनाव संभव है ({t} °C से ज़्यादा)। सुबह जल्दी या शाम को सिंचाई करें, दोपहर में छिड़काव न करें।",
+        "fert_delay": "खाद डालना टालें: अगले {h} घंटों में बारिश की संभावना है (अधिकतम {prob}%), जिससे पोषक तत्व बह जाते हैं।",
         "disclaimer": "कोई भी कदम उठाने से पहले अपने स्थानीय कृषि विज्ञान केंद्र (KVK) या कृषि अधिकारी से पुष्टि करें।",
     },
     "kn": {
@@ -52,6 +60,10 @@ T = {
         "high_clay": "ಜೇಡಿ ಮಣ್ಣಿನಲ್ಲಿ ನೀರು ನಿಧಾನವಾಗಿ ಇಳಿಯುತ್ತದೆ: ಭಾರೀ ಮಳೆಯ ಸಮಯದಲ್ಲಿ ಎಚ್ಚರಿಕೆ ವಹಿಸಿ.",
         "ph": "ಮಣ್ಣಿನ pH {ph} ಇದೆ, ಇದು ಸಾಮಾನ್ಯ ಮಟ್ಟದಿಂದ ಹೊರಗಿದೆ. ಮಣ್ಣು ಪರೀಕ್ಷೆ ಮಾಡಿಸಿ.",
         "missing": "{name}: ಈಗ ಮಾಹಿತಿ ಲಭ್ಯವಿಲ್ಲ.",
+        "irrigate": "ಅಂದಾಜು ನೀರಿನ ಲೆಕ್ಕ: {date} ರಂದು ಮಣ್ಣಿನ ನೀರಿನ ಕೊರತೆ {mm} ಮಿ.ಮೀ ದಾಟುತ್ತದೆ. ಆ ದಿನ ನೀರು ಹಾಯಿಸಲು ಯೋಜಿಸಿ (ಅಂದಾಜು).",
+        "irrigate_ok": "ಅಂದಾಜು ನೀರಿನ ಲೆಕ್ಕ: ಮುಂದಿನ {days} ದಿನಗಳಲ್ಲಿ ನೀರಾವರಿ ಬೇಕಿಲ್ಲ.",
+        "heat": "{dates} ರಂದು ಬಿಸಿಲಿನ ಒತ್ತಡ ಸಾಧ್ಯ ({t} °C ಮೀರಿ). ಬೆಳಿಗ್ಗೆ ಬೇಗ ಅಥವಾ ಸಂಜೆ ನೀರು ಹಾಯಿಸಿ, ಮಧ್ಯಾಹ್ನ ಸಿಂಪಡಿಸಬೇಡಿ.",
+        "fert_delay": "ಗೊಬ್ಬರ ಹಾಕುವುದನ್ನು ಮುಂದೂಡಿ: ಮುಂದಿನ {h} ಗಂಟೆಗಳಲ್ಲಿ ಮಳೆಯ ಸಾಧ್ಯತೆ ಇದೆ (ಗರಿಷ್ಠ {prob}%), ಇದರಿಂದ ಪೋಷಕಾಂಶ ಕೊಚ್ಚಿಹೋಗುತ್ತದೆ.",
         "disclaimer": "ಯಾವುದೇ ಕ್ರಮ ಕೈಗೊಳ್ಳುವ ಮೊದಲು ನಿಮ್ಮ ಸ್ಥಳೀಯ ಕೃಷಿ ವಿಜ್ಞಾನ ಕೇಂದ್ರ (KVK) ಅಥವಾ ಕೃಷಿ ಅಧಿಕಾರಿಯೊಂದಿಗೆ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ.",
     },
 }
@@ -59,6 +71,10 @@ T = {
 
 def fmt_time(t: str) -> str:
     return parse_local(t).strftime("%d/%m %H:%M")
+
+
+def fmt_day(d: str) -> str:
+    return parse_local(d).strftime("%d/%m")
 
 
 def compose(lang: str, results: dict, rules: list[dict], failed_sources: list[dict]) -> dict:
@@ -98,6 +114,24 @@ def compose(lang: str, results: dict, rules: list[dict], failed_sources: list[di
                 recs.append({"text": t["ph"].format(ph=so["ph"]), "evidence": ["soil_ph"]})
             else:
                 recs.append({"text": t[flag], "evidence": ["soil_sand" if flag == "high_sand" else "soil_clay"]})
+
+    ht = results.get("heat")
+    if ht and ht["status"] == "warning":
+        s = t["heat"].format(dates=", ".join(fmt_day(d["date"]) for d in ht["hot_days"]), t=ht["thresholds"]["tmax_c"])
+        recs.append({"text": s, "evidence": [f"heat_day_{i}" for i in range(1, len(ht["hot_days"]) + 1)]})
+
+    fe = results.get("fertiliser")
+    if fe and fe["status"] == "delay":
+        recs.append({"text": t["fert_delay"].format(h=fe["thresholds"]["lookahead_h"], prob=fe["max_precip_prob_pct"]),
+                     "evidence": ["fert_max_prob", "fert_rain_total"]})
+
+    ir = results.get("irrigation")
+    if ir and ir["status"] == "irrigate":
+        recs.append({"text": t["irrigate"].format(mm=ir["thresholds"]["deficit_mm"], date=fmt_day(ir["irrigate_on"])),
+                     "evidence": ["wb_deficit_final", "wb_crop_use_total", "wb_rain_total"]})
+    elif ir and ir["status"] == "ok":
+        recs.append({"text": t["irrigate_ok"].format(days=len(ir["days"])),
+                     "evidence": ["wb_deficit_final", "wb_crop_use_total", "wb_rain_total"]})
 
     missing = [t["missing"].format(name=s["name"]) for s in failed_sources]
     body = headline or [r["text"] for r in recs[:2]] or missing[:1]

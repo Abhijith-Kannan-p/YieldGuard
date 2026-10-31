@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import baseline, config, llm
+from . import baseline, config, llm, today
 from .advisor import AdviceError, advise
 from .http import close_client
 from .sources import geocode
@@ -77,6 +77,16 @@ async def transcribe(request: Request, lang: str | None = Query("auto")):
     text = str(raw.get("text", "")).strip()
     language = raw.get("language") if raw.get("language") in config.SUPPORTED_LANGUAGES else None
     return {"text": text, "language": language, "model": model, "transcribed_at": iso(now_local())}
+
+
+@app.get("/api/today")
+async def get_today(
+    location: str | None = Query(None, description="Place name in Karnataka (default: Dharwad)"),
+    lat: float | None = Query(None, ge=-90, le=90),
+    lon: float | None = Query(None, ge=-180, le=180),
+):
+    """Short live summary for the landing card and saved fields. Cached per location for one hour."""
+    return await today.summary(location, lat, lon)
 
 
 @app.get("/api/locations")
