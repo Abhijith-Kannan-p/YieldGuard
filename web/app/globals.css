@@ -75,3 +75,70 @@ body {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
 }
+
+/* ---- DataRain background (components/DataRain.tsx) ----------------------------------------- */
+.dr-root {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none; /* content above stays clickable */
+  --dr-core: #eafff4; /* head sparks on the dark theme */
+  --dr-calm: #7d9a86;
+  --dr-mid: #4caf50;
+  --dr-hot: #c9f2d0;
+}
+.dr-root--contained {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+.dr-main,
+.dr-bloom {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.dr-bloom {
+  filter: blur(6px);
+  opacity: 0.6;
+}
+.dr-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.25) 100%);
+}
+.dr-grain {
+  position: absolute;
+  inset: 0;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+/* Light theme: dark sparks, the blue/green palette, a softer bloom and a much lighter vignette and grain. */
+.dr-root--light {
+  --dr-core: #0d3b2e;
+  --dr-calm: #1e88e5;
+  --dr-mid: #2e7d32;
+  --dr-hot: #00897b;
+}
+.dr-root--light .dr-bloom {
+  opacity: 0.35;
+}
+.dr-root--light .dr-vignette {
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(15, 42, 29, 0.07) 100%);
+}
+.dr-root--light .dr-grain {
+  opacity: 0.018;
+}
+
+/* ---- Light landing page ----------------------------------------------------------------------- */
+.landing-light {
+  --landing-from: #eaf7ef; /* light green */
+  --landing-to: #e6f1fb; /* light blue */
+  --landing-ink: #0f2a1d; /* title: 13.9:1 / 13.4:1 on the gradient ends */
+  --landing-ink-soft: #14532d; /* tagline: 8.3:1 / 8.0:1 on the gradient ends */
+  --landing-panel: rgba(255, 255, 255, 0.75); /* behind the title so particles never reduce contrast */
+  background: linear-gradient(160deg, var(--landing-from) 0%, var(--landing-to) 100%);
+  color: var(--landing-ink);
+}

@@ -10,7 +10,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@paper-design/shaders-react": "^0.0.82",
     "motion": "^14.9.0",
     "next": "16.4.3",
     "react": "19.3.0",

@@ -32,7 +32,7 @@ export default function TodayCard() {
   return (
     <section
       aria-label="Today in your field"
-      className="mx-auto mt-6 w-full max-w-2xl rounded-lg border border-border bg-background/85 p-4 text-left backdrop-blur-sm sm:p-5"
+      className="mx-auto mt-6 w-full max-w-2xl rounded-lg border border-border bg-card p-4 text-left shadow-md sm:p-5"
     >
       <h2 className="text-lg font-bold text-foreground">
         Today in your field
