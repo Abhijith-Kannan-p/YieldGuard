@@ -146,6 +146,21 @@ The run scripts build the frontend once (if `web/out` is missing) and start the 
 
 For frontend work with hot reload, keep the API running on port 8000 and in another terminal run `cd web && npm run dev`, then open http://localhost:3000. In development the page calls the API on `http://localhost:8000`. Get a free Gemini key at https://aistudio.google.com/app/apikey. Without `GEMINI_API_KEY` the app still works and uses the rule-based answer.
 
+### Local development with saved responses (`USE_FIXTURES=1`)
+
+To work on the UI without calling Open-Meteo or SoilGrids (for example while rate-limited), start the dev server with saved real API responses:
+
+```powershell
+$env:USE_FIXTURES = "1"; .\run.ps1        # Windows
+USE_FIXTURES=1 ./run.sh                   # macOS / Linux
+```
+
+- It runs `devtools.fixture_server:app` instead of `app.main:app`. The responses are the real ones saved in `backend/tests/fixtures/` (see `manifest.json` for when each was captured). Only **Dharwad** is available; other places return "not found".
+- The clock is frozen at the forecast's capture time so spray windows and month-to-date rain line up with the saved forecast. Gemini is still called live if `GEMINI_API_KEY` is set.
+- Every answer is labelled: a red **TEST MODE** banner on the page, `[SAVED TEST RESPONSE]` on every source, `"fixture_mode": true` in the JSON, and an `X-YieldGuard-Data: saved-test-responses` header.
+- **It cannot run in the deployed app.** The fixture code lives in `backend/devtools/`, which `backend/app/` never imports (a test checks this). Render's start command is `uvicorn app.main:app`, which ignores `USE_FIXTURES`, and the fixture server refuses to start if `RENDER` is set or `USE_FIXTURES` is not `1`.
+- `USE_FIXTURES` is read from the shell, not from `.env`.
+
 Run the tests:
 
 ```bash

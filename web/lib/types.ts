@@ -94,6 +94,7 @@ export interface AdviceResponse {
   } | null;
   sources: SourceView[];
   warnings: string[];
+  fixture_mode?: boolean; // only set by the local-development fixture server (USE_FIXTURES=1)
   data_age?: { source: string; fetched_at: string | null; age_minutes: number | null; cached: boolean; stale: boolean }[];
   attribution: string[];
 }

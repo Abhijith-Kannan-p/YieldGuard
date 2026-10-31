@@ -355,6 +355,11 @@ function Result({ res, L, onSpeak }: { res: AdviceResponse; L: Labels; onSpeak?:
 
   return (
     <>
+      {res.fixture_mode && (
+        <div role="alert" className="mb-3 rounded-md border-2 border-destructive bg-destructive-soft p-3 font-bold">
+          {L.fixtureBanner}
+        </div>
+      )}
       {failed.map((s) => (
         <SourceFailure key={s.id} s={s} L={L} />
       ))}

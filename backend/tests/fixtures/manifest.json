@@ -1,0 +1,25 @@
+{
+ "_note": "Real API responses saved for tests and USE_FIXTURES=1 local development. Never used by the deployed app.",
+ "geocode_dharwad.json": {
+  "captured_at": "2026-10-31T09:19:05+05:30",
+  "source": "Open-Meteo Geocoding API",
+  "query": "name=Dharwad"
+ },
+ "forecast_pastdays_dharwad.json": {
+  "captured_at": "2026-10-31T09:19:06+05:30",
+  "source": "Open-Meteo Forecast API",
+  "query": "lat=15.46005 lon=75.00778 forecast_days=3 past_days=30"
+ },
+ "archive_dharwad_2000_2025.json": {
+  "source": "Open-Meteo Historical Weather (Archive) API",
+  "query": "2000-01-01 to 2025-12-31 daily precipitation_sum"
+ },
+ "soil_dharwad_center_null.json": {
+  "source": "ISRIC SoilGrids v2.0",
+  "query": "Dharwad centre (urban, null)"
+ },
+ "soil_dharwad_nearby.json": {
+  "source": "ISRIC SoilGrids v2.0",
+  "query": "2.2 km north of Dharwad centre"
+ }
+}
