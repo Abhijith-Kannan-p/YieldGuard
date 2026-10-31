@@ -19,3 +19,6 @@ Thumbs.db
 
 # Local data cache (rainfall baseline)
 .cache/
+
+# Saved live data (rainfall baselines, soil cache), rebuilt automatically
+backend/data/

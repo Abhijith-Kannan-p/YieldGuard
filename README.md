@@ -38,7 +38,7 @@ flowchart LR
 ```
 
 1. **Resolve location** with Open-Meteo Geocoding, restricted to Karnataka (or use browser GPS coordinates).
-2. **Fetch in parallel**: the 72-hour forecast, month-to-date rainfall, the rainfall baseline (one small archive request per year, 2000 to last year, for the compared month only), and SoilGrids topsoil. Each call has an 8 s timeout and one retry. Responses are cached with their original fetch time.
+2. **Fetch in parallel**: the 72-hour forecast with month-to-date rainfall (one request), and SoilGrids topsoil. Each call has an 8 s timeout and one retry. Responses are cached with their original fetch time. The long-run rainfall baseline is **not** fetched during a question: it is read from `backend/data/baselines.json` (see below).
 3. **Apply rules** from [`backend/app/config.py`](backend/app/config.py) (spray window, heavy rain, rainfall deficit, soil).
 4. **Build the evidence registry**: every number gets an id, label, value, unit, the time it refers to, its source and its fetch time.
 5. **Language model** (Google Gemini, `gemini-3.5-flash-lite`, retrying once on `gemini-3.8-flash` if it is rate-limited, overloaded or slow) gets only that evidence plus the rule outcomes and must return structured JSON whose recommendations cite evidence ids. Unknown ids are removed.
@@ -50,7 +50,8 @@ flowchart LR
 Open-Meteo's free tier allows 600 calls per minute, 5,000 per hour and 10,000 per day **per IP address**, and weights each call by its length (about days ÷ 14). Hosting platforms such as Render share outbound IPs between apps, so other apps' traffic counts too. YieldGuard keeps its usage low:
 
 - **One forecast request per place**: the 72-hour forecast and this month's past daily rain come from one call (`past_days`). Cached for 60 minutes per location (coordinates rounded to 2 decimals).
-- **Rainfall baseline built once per district and month**: one small archive request per year (about 57 weighted calls instead of about 680 for a single 26-year request), cached for 30 days and saved to `backend/.cache/baseline.json` so a restart does not refetch it. On Render's free plan the disk is reset on each deploy or restart, so it is rebuilt once after that.
+- **Rainfall baseline built in the background, once per district**: one archive request for the whole period (2000-01-01 to the last full year's 12-31, `daily=precipitation_sum`). The daily values, the years used and the build time are saved to `backend/data/baselines.json` and loaded at startup; the deficit rule averages the same calendar dates from it. At startup the default district (Dharwad) is built if missing; a question for a district with no baseline yet gets "the rainfall baseline for … is not available yet; it is being built now" and the build is queued. Builds run one at a time, at least 70 s apart; a failed build is retried after 10 minutes; baselines are rebuilt after 30 days. The single 26-year request weighs about 680 Open-Meteo calls (more than the 600-per-minute limit), which is why builds are rare, spaced out and never part of a question. On Render's free plan the disk is reset on each deploy or restart, so the default district is rebuilt in the background after that.
+- **SoilGrids responses are cached for 30 days per coordinate pair** and saved to `backend/data/soil_cache.json`. If SoilGrids fails (for example HTTP 503), the saved copy is shown with its fetch time; without one, the answer says soil data is temporarily unavailable. The 60 s backoff applies only to Open-Meteo 429s, not to SoilGrids or Gemini.
 - **One Open-Meteo call at a time**, and identical requests that arrive together share one call.
 - **HTTP 429 is never retried straight away.** No Open-Meteo call is sent for `Retry-After` seconds, or at least 60 s, and the last good data is shown instead, labelled with its fetch time.
 - **Every external call is logged** with provider, path, location, status and duration, for example `fetch open-meteo /v1/forecast latitude=15.46 longitude=75.01 past_days=30 -> 200 in 858 ms`; skipped calls are logged as `skip ... rate-limit backoff`.
@@ -92,8 +93,8 @@ render.yaml          deployment blueprint (no secrets)
 | Place → coordinates | [Open-Meteo Geocoding API](https://open-meteo.com/en/docs/geocoding-api) | Filtered to Karnataka, larger towns first |
 | 72-hour hourly forecast | [Open-Meteo Forecast API](https://open-meteo.com/en/docs) | `temperature_2m, relative_humidity_2m, precipitation_probability, precipitation, wind_speed_10m`, `timezone=Asia/Kolkata`, `forecast_days=3` |
 | Month-to-date rainfall | Open-Meteo Forecast API (`start_date`/`end_date`, `daily=precipitation_sum`) | Recent days without the archive's ~5-day lag |
-| Long-run rainfall baseline | [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api) | 2000 to last full year, same calendar dates; one request per year for the compared month; cached 7 days |
-| Topsoil properties | [ISRIC SoilGrids v2.0](https://rest.isric.org/soilgrids/v2.0/docs) | `clay, sand, phh2o, soc`, `depth=0-5cm`, `value=mean`; cached 30 days |
+| Long-run rainfall baseline | [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api) | 2000 to last full year, same calendar dates; one request per district, built in the background, saved to `backend/data/baselines.json`, rebuilt after 30 days |
+| Topsoil properties | [ISRIC SoilGrids v2.0](https://rest.isric.org/soilgrids/v2.0/docs) | `clay, sand, phh2o, soc`, `depth=0-5cm`, `value=mean`; cached 30 days per coordinate pair, saved to `backend/data/soil_cache.json` |
 | Answer writing | [Google Gemini API](https://ai.google.dev/) | Uses only the data above. Free tier: prompts may be used by Google to improve its products, so only public weather/soil data and the question are sent. |
 | Voice questions (optional) | Google Gemini API (audio input) | Only when the farmer taps **Speak**. The recording is sent to Gemini for transcription and is not stored by YieldGuard. Same free-tier caveat as above. |
 
@@ -180,7 +181,7 @@ Demo link format: `/advice/?location=Hubballi&q=Can+I+spray+tomorrow%3F&lang=kn`
 | `POST /api/transcribe?lang=auto\|en\|hi\|kn` | Body: 16-bit PCM WAV (max 30 s). Returns `{text, language, model, transcribed_at}` |
 | `GET /api/locations?q=…` | Karnataka place search |
 | `GET /api/rules` | Thresholds in use |
-| `GET /api/health` | Status, and whether the LLM key is configured (never the key itself) |
+| `GET /api/health` | Status, whether the LLM key is configured (never the key itself), and which rainfall baselines are stored, building or failed. Calls no external service. |
 
 Errors return JSON `{"error": {"code", "message"}}`: `404 location_not_found`, `503 geocoding_failed`, `422` for empty questions or coordinates outside Karnataka.
 

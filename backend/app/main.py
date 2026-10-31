@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -7,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, llm
+from . import baseline, config, llm
 from .advisor import AdviceError, advise
 from .http import close_client
 from .sources import geocode
@@ -24,7 +25,11 @@ FRONTEND_DIR = Path(__file__).resolve().parents[2] / "web" / "out"
 async def lifespan(app: FastAPI):
     if not llm.available():
         log.warning("GEMINI_API_KEY not set - answers will use the rule-based fallback")
+    baseline.store.load()
+    # Build the default district's rainfall baseline in the background if none is stored yet.
+    prebuild = asyncio.create_task(baseline.store.prebuild_default())
     yield
+    prebuild.cancel()
     await close_client()
 
 
@@ -117,8 +122,10 @@ async def rules():
 
 @app.get("/api/health")
 async def health():
+    """Liveness and configuration only. Calls no external service."""
     return {"status": "ok", "time": iso(now_local()), "llm_configured": llm.available(),
-            "llm_model": config.LLM_MODEL, "llm_fallback_model": config.LLM_FALLBACK_MODEL}
+            "llm_model": config.LLM_MODEL, "llm_fallback_model": config.LLM_FALLBACK_MODEL,
+            "rainfall_baselines": baseline.store.status()}
 
 
 @app.get("/advice", include_in_schema=False)

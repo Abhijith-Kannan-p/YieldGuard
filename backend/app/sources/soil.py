@@ -3,14 +3,23 @@
 SoilGrids stores integers scaled by `d_factor` (e.g. pH x 10, clay in g/kg).
 We divide by the d_factor reported in the response itself to get the target
 units: clay/sand in %, pH in pH units, SOC in g/kg.
+
+Successful responses are cached per coordinate pair (rounded to 2 decimals) for
+TTL_SOIL and saved to SOIL_CACHE_FILE. If SoilGrids fails (for example HTTP 503),
+the last saved response is used and labelled with its fetch time; without one,
+the answer says soil data is temporarily unavailable.
 """
 import math
 import time
 
 from .. import config
+from ..cache import FileCache
 from ..http import FetchError, SourceResult, cached_fetch, coord_key, get_json
 
 NAME = "ISRIC SoilGrids v2.0"
+NO_VALUES = "no soil values at this point or nearby (area may be urban or water)"
+
+soil_store = FileCache(config.SOIL_CACHE_FILE)
 
 TARGET_UNITS = {"clay": "%", "sand": "%", "phh2o": "pH", "soc": "g/kg"}
 
@@ -69,7 +78,10 @@ async def fetch(lat: float, lon: float) -> SourceResult:
             if has_values(props):
                 return {"properties": props, "query_lat": qlat, "query_lon": qlon,
                         "offset_km": distance_km(lat, lon, qlat, qlon)}
-        raise FetchError("no soil values at this point or nearby (area may be urban or water)")
+        raise FetchError(NO_VALUES)
 
-    return await cached_fetch("soil", NAME, config.SOILGRIDS_URL,
-                              f"soil:{coord_key(lat, lon)}", config.TTL_SOIL, load)
+    res = await cached_fetch("soil", NAME, config.SOILGRIDS_URL,
+                             f"soil:{coord_key(lat, lon)}", config.TTL_SOIL, load, store=soil_store)
+    if not res.ok and res.error != NO_VALUES:
+        res.error = f"soil data is temporarily unavailable ({res.error})"
+    return res

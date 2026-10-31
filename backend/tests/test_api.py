@@ -38,7 +38,8 @@ def live(monkeypatch):
         # One forecast request returns both the hourly forecast and recent daily rain (past_days).
         "forecast": ok("forecast", {**parse_hourly(load_fixture("forecast_dharwad.json")),
                                     "daily": parse_daily(load_fixture("mtd_dharwad_2026-10.json"))}),
-        "rain_baseline": ok("rain_baseline", {"daily": parse_daily(load_fixture("archive_dharwad_2000_2025.json"))}),
+        "rain_baseline": ok("rain_baseline", {"daily": parse_daily(load_fixture("archive_dharwad_2000_2025.json")),
+                                              "district": "Dharwad district", "start_year": 2000, "end_year": 2025}),
         "soil": ok("soil", {"properties": convert(load_fixture("soil_dharwad_nearby.json")),
                             "query_lat": 15.4801, "query_lon": 75.0078, "offset_km": 2.2}),
     }
@@ -49,7 +50,7 @@ def live(monkeypatch):
     async def fc(lat, lon, past_from=None, today=None):
         return state["forecast"]
 
-    async def base(place, y0, y1, month=None):
+    async def base(place, today):
         return state["rain_baseline"]
 
     async def soil(lat, lon):
@@ -57,7 +58,7 @@ def live(monkeypatch):
 
     monkeypatch.setattr(advisor.geocode, "search", geo)
     monkeypatch.setattr(advisor.forecast, "fetch", fc)
-    monkeypatch.setattr(advisor.rainfall, "fetch_baseline", base)
+    monkeypatch.setattr(advisor.baseline.store, "get", base)
     monkeypatch.setattr(advisor.soil, "fetch", soil)
     monkeypatch.setattr(advisor, "now_local", lambda: NOW)
     monkeypatch.setattr(llm.config, "GEMINI_API_KEY", "")  # default: no LLM -> fallback
@@ -185,6 +186,18 @@ def test_rules_endpoint_reflects_config():
 
 def test_health():
     assert client.get("/api/health").json()["status"] == "ok"
+
+
+def test_health_calls_no_external_service(monkeypatch):
+    from app import http
+
+    def no_network(*a, **k):
+        raise AssertionError("health must not call an external service")
+
+    monkeypatch.setattr(http, "get_client", no_network)
+    monkeypatch.setattr(llm, "_get_client", no_network)
+    body = client.get("/api/health").json()
+    assert body["status"] == "ok" and "rainfall_baselines" in body
 
 
 def test_advice_alias_takes_question_param(live):

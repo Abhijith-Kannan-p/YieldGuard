@@ -5,7 +5,7 @@ import logging
 import time
 import uuid
 
-from . import config, evidence, fallback, grounding, language, llm, prompts
+from . import baseline, config, evidence, fallback, grounding, language, llm, prompts
 from .http import SourceResult
 from .rules import deficit as deficit_rule
 from .rules import heavy_rain as heavy_rule
@@ -84,12 +84,15 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     win_start, win_end = deficit_rule.window(now.date())
     y0, y1 = rainfall.baseline_years(now.date())
     # One forecast request also returns this month's past daily rain (past_days).
+    # The long-run baseline is read from the stored per-district file, never fetched here.
     fc, base, soil_src = await asyncio.gather(
         forecast.fetch(place["lat"], place["lon"], past_from=win_start, today=now.date()),
-        rainfall.fetch_baseline(place, y0, y1, month=win_start.month),
+        baseline.store.get(place, now.date()),
         soil.fetch(place["lat"], place["lon"]),
     )
     mtd = rainfall.month_to_date(fc)
+    # Average over the years actually stored (a stored baseline can lag a year until it is rebuilt).
+    base_years = (base.data["start_year"], base.data["end_year"]) if base.ok else (y0, y1)
     sources = [geo, fc, mtd, base, soil_src]
     failed = [{"id": s.source_id, "name": s.name, "error": s.error} for s in sources if not s.ok]
     stale = [s for s in sources if s.ok and s.stale]
@@ -100,7 +103,7 @@ async def advise(question: str, location: str | None = None, lat: float | None =
         "heavy_rain": heavy_rule.evaluate(fc.data["hours"], now) if fc.ok else None,
         "deficit": deficit_rule.evaluate(mtd.data["daily"] if mtd.ok else None,
                                          base.data["daily"] if base.ok else None,
-                                         win_start, win_end, y0, y1),
+                                         win_start, win_end, *base_years),
         "soil": soil_rule.evaluate(soil_src.data["properties"] if soil_src.ok else None),
     }
 

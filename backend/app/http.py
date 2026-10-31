@@ -4,8 +4,10 @@ Fetchers never raise: they return a SourceResult with status "ok" or "failed"
 so the advisor can keep going and tell the user which source is missing.
 
 Open-Meteo's free tier is rate-limited per IP address, so calls to it are
-sent one at a time, and after an HTTP 429 no further call is sent until the
-backoff period has passed (Retry-After, or at least RATE_LIMIT_BACKOFF_S).
+sent one at a time, and after an Open-Meteo HTTP 429 no further Open-Meteo call
+is sent until the backoff period has passed (Retry-After, or at least
+RATE_LIMIT_BACKOFF_S). Other providers (SoilGrids) get no backoff: a 429 there
+is retried once like a 5xx. Gemini does not go through this module.
 Every external call is logged with its status and duration.
 """
 import asyncio
@@ -25,7 +27,7 @@ from .timeutil import now_local
 
 log = logging.getLogger(__name__)
 
-RETRYABLE_STATUS = {500, 502, 503, 504}  # 429 is handled by backoff, never retried straight away
+RETRYABLE_STATUS = {500, 502, 503, 504}  # plus 429 for non-Open-Meteo providers (see get_json)
 
 
 @dataclass
@@ -119,9 +121,9 @@ async def get_json(url: str, params: Any, timeout_s: float = config.HTTP_TIMEOUT
                    retries: int = config.HTTP_RETRIES) -> Any:
     """GET a JSON document. Retries once on timeouts, connection errors and 5xx.
 
-    HTTP 429 is never retried immediately: the provider is put in backoff and every
-    call to it fails fast (without a request) until the backoff ends, so callers can
-    fall back to cached data.
+    An Open-Meteo HTTP 429 is never retried: Open-Meteo is put in backoff and every call
+    to it fails fast (without a request) until the backoff ends, so callers can fall
+    back to cached data. A 429 from another provider is retried once, without backoff.
     """
     name = provider(url)
     path = urlsplit(url).path
@@ -141,13 +143,15 @@ async def get_json(url: str, params: Any, timeout_s: float = config.HTTP_TIMEOUT
             try:
                 resp = await get_client().get(url, params=params, timeout=timeout_s)
                 status = resp.status_code
-                if resp.status_code == 429:
+                if resp.status_code == 429 and name == "open-meteo":
                     pause = _retry_after_s(resp)
                     _backoff_until[name] = _clock() + pause
                     reason = _reason(resp)
                     raise FetchError(f"rate limit reached (HTTP 429{': ' + reason if reason else ''}); "
                                      f"paused for {pause:.0f} s")
-                if resp.status_code in RETRYABLE_STATUS:
+                if resp.status_code == 429:
+                    last_err = "rate limit reached (HTTP 429)"
+                elif resp.status_code in RETRYABLE_STATUS:
                     last_err = f"HTTP {resp.status_code}"
                 elif resp.status_code >= 400:
                     # Client errors won't fix themselves - do not retry.

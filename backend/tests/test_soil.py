@@ -46,3 +46,53 @@ def test_real_dharwad_soil_is_ok():
 
 def test_distance():
     assert soil_src.distance_km(15.46, 75.0, 15.48, 75.0) == 2.2
+
+
+async def test_soilgrids_503_uses_saved_copy_with_its_fetch_time(monkeypatch):
+    from datetime import timedelta
+
+    from app.http import FetchError
+    from app.sources import soil
+    from app.timeutil import now_local
+
+    fetched = now_local() - timedelta(days=10)
+    saved = {"properties": soil.convert(load_fixture("soil_dharwad_nearby.json")),
+             "query_lat": 15.46, "query_lon": 75.01, "offset_km": 0.0}
+    soil.soil_store.set("soil:15.46,75.01", saved, fetched, ttl_s=-1)  # older than the cache TTL
+
+    async def down(*a, **k):
+        raise FetchError("HTTP 503")
+
+    monkeypatch.setattr(soil, "get_json", down)
+    res = await soil.fetch(15.46, 75.01)
+    assert res.ok and res.stale and res.fetched_at == fetched and "503" in res.error
+
+
+async def test_soilgrids_503_without_saved_copy_says_temporarily_unavailable(monkeypatch):
+    from app.http import FetchError
+    from app.sources import soil
+
+    async def down(*a, **k):
+        raise FetchError("HTTP 503")
+
+    monkeypatch.setattr(soil, "get_json", down)
+    res = await soil.fetch(12.3, 76.6)
+    assert not res.ok and res.error == "soil data is temporarily unavailable (HTTP 503)"
+
+
+async def test_soil_cache_survives_restart(monkeypatch, tmp_path):
+    from app.cache import FileCache
+    from app.sources import soil
+
+    calls = []
+
+    async def ok(url, params, **k):
+        calls.append(params)
+        return load_fixture("soil_dharwad_nearby.json")
+
+    monkeypatch.setattr(soil, "get_json", ok)
+    monkeypatch.setattr(soil, "soil_store", FileCache(tmp_path / "soil.json"))
+    first = await soil.fetch(15.48, 75.01)
+    monkeypatch.setattr(soil, "soil_store", FileCache(tmp_path / "soil.json"))  # new process
+    again = await soil.fetch(15.48, 75.01)
+    assert again.ok and again.cached and again.fetched_at == first.fetched_at and len(calls) == 1

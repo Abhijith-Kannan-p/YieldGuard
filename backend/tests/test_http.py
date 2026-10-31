@@ -229,3 +229,15 @@ async def test_stale_data_too_old_is_not_used(monkeypatch):
 
     res = await http.cached_fetch("forecast", "Forecast", "u", "fc:old", 3600, failing)
     assert not res.ok and res.error == "HTTP 503"
+
+
+async def test_soilgrids_429_gets_no_backoff(transport, clock):
+    calls, script = transport
+    url = "https://rest.isric.org/soilgrids/v2.0/properties/query"
+    script += [httpx.Response(429), httpx.Response(200, json={"ok": 1})]
+    assert await http.get_json(url, {}) == {"ok": 1}  # retried once, like a 5xx
+    assert http.backoff_remaining(url) == 0
+    assert http.backoff_remaining("https://api.open-meteo.com/v1/forecast") == 0
+    script += [httpx.Response(200, json={"ok": 2})]
+    assert await http.get_json(url, {}) == {"ok": 2}
+    assert len(calls) == 3

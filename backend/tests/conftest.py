@@ -16,13 +16,15 @@ def load_fixture(name: str):
 
 @pytest.fixture(autouse=True)
 def _clear_cache(tmp_path, monkeypatch):
-    from app import http
+    from app import baseline, http
     from app.cache import FileCache
-    from app.sources import rainfall
+    from app.sources import soil
 
     cache.clear()
     http._backoff_until.clear()
-    monkeypatch.setattr(rainfall, "baseline_store", FileCache(tmp_path / "baseline.json"))
+    # Fresh, file-backed stores per test; no background baseline builds unless a test asks for them.
+    monkeypatch.setattr(baseline, "store", baseline.BaselineStore(tmp_path / "baselines.json", autostart=False))
+    monkeypatch.setattr(soil, "soil_store", FileCache(tmp_path / "soil_cache.json"))
     yield
     cache.clear()
     http._backoff_until.clear()

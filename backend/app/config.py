@@ -52,11 +52,15 @@ LLM_RETRIES = 1
 # weights each call by its length (about days / 14). On shared hosting the IP is shared too.
 OPEN_METEO_MAX_CONCURRENT = 1   # Open-Meteo calls are sent one at a time
 OTHER_MAX_CONCURRENT = 4        # other providers (SoilGrids)
-RATE_LIMIT_BACKOFF_S = 60       # after HTTP 429: no call to that provider for at least this long...
-RATE_LIMIT_BACKOFF_MAX_S = 6 * 3600  # ...or Retry-After if longer, capped here
-# The rainfall baseline is one small archive request per year for the compared month only
-# (~57 weighted calls; a single 26-year request would weigh ~680).
-BASELINE_MIN_YEARS = 10       # fewer usable years than this -> baseline counts as failed
+RATE_LIMIT_BACKOFF_S = 60       # after an Open-Meteo HTTP 429: no Open-Meteo call for at least this long...
+RATE_LIMIT_BACKOFF_MAX_S = 6 * 3600  # ...or Retry-After if longer, capped here. (Not applied to SoilGrids/Gemini.)
+
+# Rainfall baseline: ONE archive request per district for the whole period, built in the
+# background (never during a question) and saved to BASELINE_FILE.
+BASELINE_TIMEOUT_S = 30.0       # the 26-year request is large (~7 s typical)
+BASELINE_BUILD_SPACING_S = 70   # pause between background builds so big requests fall in different minutes
+BASELINE_RETRY_AFTER_S = 10 * 60  # after a failed build, wait this long before trying that district again
+BASELINE_MIN_YEARS = 10         # fewer usable years than this -> the build counts as failed
 
 # ---------------------------------------------------------------------------
 # Cache TTLs (seconds). Every cached item stores its original fetch time.
@@ -64,20 +68,20 @@ BASELINE_MIN_YEARS = 10       # fewer usable years than this -> baseline counts 
 CACHE_COORD_DECIMALS = 2      # cache key precision for lat/lon (~1 km)
 TTL_GEOCODE = 7 * 24 * 3600
 TTL_FORECAST = 60 * 60        # forecast + recent past rain (one request), per location
-TTL_BASELINE = 30 * 24 * 3600 # long-run rainfall normals, per district and month
-TTL_PARTIAL_BASELINE = 3600   # a baseline with some years missing is retried sooner
-TTL_SOIL = 30 * 24 * 3600
-# The baseline is also written to this file so a restart does not refetch it.
-# (On hosts with an ephemeral disk, such as Render's free plan, it lasts until the next deploy/restart.)
-BASELINE_CACHE_FILE = Path(os.getenv("BASELINE_CACHE_FILE",
-                                     Path(__file__).resolve().parents[1] / ".cache" / "baseline.json"))
+TTL_BASELINE = 30 * 24 * 3600 # rebuild a district's baseline in the background after this
+TTL_SOIL = 30 * 24 * 3600     # per coordinate pair (rounded to 2 decimals)
+
+# Saved data, loaded at startup so a restart does not refetch it. On hosts with an ephemeral
+# disk (Render's free plan) the files last until the next deploy or restart.
+DATA_DIR = Path(os.getenv("YIELDGUARD_DATA_DIR", Path(__file__).resolve().parents[1] / "data"))
+BASELINE_FILE = DATA_DIR / "baselines.json"
+SOIL_CACHE_FILE = DATA_DIR / "soil_cache.json"
 
 # If a live refresh fails (rate limit, outage), the last good response may be shown instead,
 # labelled as such and with its original fetch time, as long as it is no older than this.
 STALE_MAX_AGE_S = {
     "geocode": 30 * 24 * 3600,
     "forecast": 12 * 3600,      # a 3-day forecast from 12 h ago still covers the next 60 h
-    "rain_baseline": 365 * 24 * 3600,
     "soil": 90 * 24 * 3600,
 }
 

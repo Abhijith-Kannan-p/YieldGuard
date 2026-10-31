@@ -32,7 +32,7 @@ if os.getenv("RENDER") or os.getenv("USE_FIXTURES") != "1":
 
 from fastapi import Request  # noqa: E402
 
-from app import advisor, http, main  # noqa: E402
+from app import advisor, baseline, http, main  # noqa: E402
 from app.sources import forecast, geocode, rainfall, soil  # noqa: E402
 
 log = logging.getLogger("yieldguard.fixtures")
@@ -89,11 +89,26 @@ for mod in (geocode, forecast, rainfall, soil):
 for mod in (advisor, http, main):
     mod.now_local = _frozen_now
 for mod, attr in ((geocode, "NAME"), (forecast, "NAME"), (rainfall, "MTD_NAME"), (rainfall, "BASELINE_NAME"),
-                  (soil, "NAME")):
+                  (baseline, "BASELINE_NAME"), (soil, "NAME")):
     setattr(mod, attr, getattr(mod, attr) + LABEL)
 
-# Keep fixture baselines out of the real baseline file.
-rainfall.baseline_store = rainfall.FileCache(FIXTURES.parents[1] / ".cache" / "fixture-baseline.json")
+# Saved-response data goes to .cache/, never into the real data/ files.
+_CACHE = FIXTURES.parents[1] / ".cache"
+
+
+class _InlineBaselineStore(baseline.BaselineStore):
+    """Builds a missing baseline straight away from the saved archive response (no background queue)."""
+
+    async def get(self, place, today):
+        if baseline.district_key(place) not in self.entries:
+            await self.build(place)
+        return await super().get(place, today)
+
+
+baseline.get_json = fake_get_json
+baseline.now_local = _frozen_now
+baseline.store = _InlineBaselineStore(_CACHE / "fixture-baselines.json", autostart=False)
+soil.soil_store = soil.FileCache(_CACHE / "fixture-soil.json")
 
 app = main.app
 
