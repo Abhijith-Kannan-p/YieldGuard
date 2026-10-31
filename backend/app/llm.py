@@ -7,7 +7,8 @@ from google import genai
 from google.genai import errors, types
 
 from . import config
-from .prompts import OUTPUT_SCHEMA, SYSTEM_PROMPT, TRANSCRIBE_SCHEMA, transcribe_prompt
+from .prompts import (FOLLOWUP_SCHEMA, FOLLOWUP_SYSTEM_PROMPT, OUTPUT_SCHEMA, SYSTEM_PROMPT, TRANSCRIBE_SCHEMA,
+                      transcribe_prompt)
 
 log = logging.getLogger(__name__)
 
@@ -43,6 +44,16 @@ def _gen_config() -> types.GenerateContentConfig:
         system_instruction=SYSTEM_PROMPT,
         response_mime_type="application/json",
         response_json_schema=OUTPUT_SCHEMA,
+        thinking_config=types.ThinkingConfig(thinking_level=config.LLM_THINKING_LEVEL),
+        max_output_tokens=config.LLM_MAX_TOKENS,
+    )
+
+
+def _followup_config() -> types.GenerateContentConfig:
+    return types.GenerateContentConfig(
+        system_instruction=FOLLOWUP_SYSTEM_PROMPT,
+        response_mime_type="application/json",
+        response_json_schema=FOLLOWUP_SCHEMA,
         thinking_config=types.ThinkingConfig(thinking_level=config.LLM_THINKING_LEVEL),
         max_output_tokens=config.LLM_MAX_TOKENS,
     )
@@ -131,3 +142,17 @@ async def transcribe(wav: bytes, lang_hint: str | None = None) -> tuple[dict, st
             last = str(e)
             log.warning("transcription with %s failed (%s)", model, last)
     raise LLMError(f"speech-to-text unavailable: {last}")
+
+
+async def followup(user_message: str) -> tuple[dict, str]:
+    """Answer a follow-up question from stored data. Returns (parsed JSON, model used); raises LLMError."""
+    if not available():
+        raise LLMError("language model not configured (GEMINI_API_KEY is not set)")
+    last = ""
+    for model in _models():
+        try:
+            return await _call(model, user_message, _followup_config()), model
+        except _Retryable as e:
+            last = str(e)
+            log.warning("follow-up with %s failed (%s)", model, last)
+    raise LLMError(f"language model unavailable: {last}")

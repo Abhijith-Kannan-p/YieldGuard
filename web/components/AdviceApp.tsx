@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import AdviceResult from "./AdviceResult";
 import AttributionFooter from "./AttributionFooter";
+import FollowUps from "./FollowUps";
 import { PinIcon } from "./Icons";
 import MicButton from "./MicButton";
 import SavedFields from "./SavedFields";
@@ -94,6 +95,7 @@ export default function AdviceApp() {
   const resultRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const autoSubmit = useRef(false);
+  const lastAsk = useRef<{ where: Where; q: string } | null>(null); // for "Refresh data"
 
   const labelFor = (p: PlaceSuggestion) => (p.district ? `${p.name} (${p.district})` : p.name);
 
@@ -199,6 +201,7 @@ export default function AdviceApp() {
   const ask = useCallback(
     async (where: Where, q: string) => {
       if (!q || !where.name || phase === "loading") return;
+      lastAsk.current = { where, q };
       const params = new URLSearchParams({ q, lang: langChoice, location: where.name });
       if (where.lat != null && where.lon != null) {
         params.set("lat", String(where.lat));
@@ -303,18 +306,18 @@ export default function AdviceApp() {
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <div className="flex items-center gap-3">
-            <Link href="/" className="inline-flex min-h-11 items-center text-muted hover:text-foreground">
+            <Link href="/" className="inline-flex min-h-11 items-center text-muted-foreground hover:text-foreground">
               ← {L.back}
             </Link>
             <div>
               <h1 className="text-xl font-bold leading-tight">
                 <span className="text-primary">YieldGuard</span> · {L.title}
               </h1>
-              <p className="text-sm text-muted">{L.subtitle}</p>
+              <p className="text-sm text-muted-foreground">{L.subtitle}</p>
             </div>
           </div>
           <label className="flex items-center gap-2">
-            <span className="text-muted">{L.language}</span>
+            <span className="text-muted-foreground">{L.language}</span>
             <select
               value={langChoice}
               onChange={(e) => onLangChange(e.target.value as LangChoice)}
@@ -330,7 +333,7 @@ export default function AdviceApp() {
 
       <main className="mx-auto grid w-full max-w-7xl flex-1 grid-cols-1 gap-5 px-4 py-5 lg:grid-cols-[22rem_minmax(0,1fr)]">
         <aside className="grid min-w-0 grid-cols-1 content-start gap-5">
-          {!online && <div className="rounded-md border border-amber bg-amber-soft p-3">{L.offline}</div>}
+          {!online && <div className="rounded-md border border-warning bg-warning-soft p-3">{L.offline}</div>}
 
           <form ref={formRef} onSubmit={submit} className="rounded-md border border-border bg-card p-4" autoComplete="off">
             <label htmlFor="location" className="mb-1.5 block font-semibold">{L.location}</label>
@@ -349,7 +352,7 @@ export default function AdviceApp() {
                 onClick={useMyLocation}
                 title={L.useLocation}
                 aria-label={L.useLocation}
-                className="min-h-11 min-w-11 rounded-md border border-border bg-background px-3 text-muted hover:border-primary hover:text-primary"
+                className="min-h-11 min-w-11 rounded-md border border-border bg-background px-3 text-muted-foreground hover:border-primary hover:text-primary"
               >
                 <PinIcon />
               </button>
@@ -357,7 +360,7 @@ export default function AdviceApp() {
             <datalist id="places">
               {suggestions.map((p) => <option key={`${p.lat},${p.lon}`} value={labelFor(p)} />)}
             </datalist>
-            {locHint && <small className="mt-1 block text-sm text-muted">{locHint}</small>}
+            {locHint && <small className="mt-1 block text-sm text-muted-foreground">{locHint}</small>}
 
             <div className="mb-1.5 mt-4 flex flex-wrap items-start justify-between gap-2">
               <label htmlFor="question" className="pt-2 font-semibold">{L.question}</label>
@@ -379,7 +382,7 @@ export default function AdviceApp() {
                   key={ex}
                   type="button"
                   onClick={() => setQuestion(ex)}
-                  className="min-h-11 rounded-full border border-border px-3 text-left text-muted hover:border-primary hover:text-foreground"
+                  className="min-h-11 rounded-full border border-border px-3 text-left text-muted-foreground hover:border-primary hover:text-foreground"
                 >
                   {ex}
                 </button>
@@ -389,11 +392,11 @@ export default function AdviceApp() {
             <button
               type="submit"
               disabled={phase === "loading"}
-              className="mt-4 min-h-12 w-full rounded-md bg-primary px-4 text-lg font-bold text-primary-foreground transition hover:brightness-110 disabled:cursor-progress disabled:opacity-60"
+              className="mt-4 min-h-12 w-full rounded-md bg-primary px-4 text-lg font-bold text-primary-foreground transition hover:bg-accent hover:text-accent-foreground disabled:cursor-progress disabled:opacity-60"
             >
               {phase === "loading" ? "…" : L.ask}
             </button>
-            <p role="status" aria-live="polite" className="mt-2 min-h-6 text-muted">
+            <p role="status" aria-live="polite" className="mt-2 min-h-6 text-muted-foreground">
               {statusKey ? (L[statusKey] as string) : ""}
             </p>
           </form>
@@ -415,7 +418,7 @@ export default function AdviceApp() {
 
           {phase === "error" && error && (
             <div role="alert" className="rounded-md border border-destructive bg-destructive-soft p-4">
-              <p className="font-semibold text-destructive">{L.requestFailed}</p>
+              <p className="font-semibold text-destructive-text">{L.requestFailed}</p>
               <p className="mt-1">{error}</p>
             </div>
           )}
@@ -423,7 +426,7 @@ export default function AdviceApp() {
           {phase === "idle" && !result && (
             <div className="rounded-md border border-dashed border-border p-6 text-center">
               <p className="text-lg font-semibold">{L.emptyTitle}</p>
-              <p className="mx-auto mt-2 max-w-xl text-muted">{L.emptyBody}</p>
+              <p className="mx-auto mt-2 max-w-xl text-muted-foreground">{L.emptyBody}</p>
             </div>
           )}
 
@@ -435,6 +438,13 @@ export default function AdviceApp() {
             <>
               {lastKnown && <LastKnown lk={lastKnown} L={L} />}
               <AdviceResult res={result} L={L} onSpeak={voice.canSpeak(result.language) ? speakAnswer(result) : undefined} />
+              <FollowUps
+                key={result.request_id}
+                res={result}
+                L={L}
+                lang={langChoice}
+                onRefresh={() => lastAsk.current && void ask(lastAsk.current.where, lastAsk.current.q)}
+              />
             </>
           )}
         </section>
@@ -449,15 +459,15 @@ export default function AdviceApp() {
 function LastKnown({ lk, L, onSpeak }: { lk: { entry: LastAnswer; failed: string[] }; L: Labels; onSpeak?: () => void }) {
   const age = fmtAge(minutesSince(lk.entry.savedAt), L.ageUnits);
   return (
-    <section aria-label={L.lastKnownTitle} className="rounded-md border-2 border-amber p-3">
-      <div className="mb-3 rounded-md bg-amber-soft p-3">
-        <p className="text-lg font-bold text-amber">
+    <section aria-label={L.lastKnownTitle} className="rounded-md border-2 border-warning p-3">
+      <div className="mb-3 rounded-md bg-warning-soft p-3">
+        <p className="text-lg font-bold text-warning">
           {L.lastKnownTitle} · {fill(L.lastUpdated, { age })}
         </p>
         <p className="mt-1">
           {L.liveFailedNow} <b>{lk.failed.join(", ")}</b>
         </p>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm text-muted-foreground">
           {L.fetched} {fmtFetched(lk.entry.res.generated_at)} · {lk.entry.res.location.name}
         </p>
       </div>
@@ -474,7 +484,7 @@ function LastKnown({ lk, L, onSpeak }: { lk: { entry: LastAnswer; failed: string
 function LoadingCard({ label }: { label: string }) {
   return (
     <div className="grid gap-3" aria-hidden="true">
-      <p className="text-muted">{label}</p>
+      <p className="text-muted-foreground">{label}</p>
       <div className="grid animate-pulse grid-cols-2 gap-3 lg:grid-cols-4">
         {[0, 1, 2, 3].map((i) => <div key={i} className="h-28 rounded-md bg-card" />)}
       </div>

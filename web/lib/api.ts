@@ -1,4 +1,4 @@
-import type { AdviceResponse, PlaceSuggestion, TodaySummary } from "./types";
+import type { AdviceResponse, FollowupResponse, PlaceSuggestion, TodaySummary } from "./types";
 
 // In production the page is served by the FastAPI backend, so API calls are same-origin.
 // During `next dev` (port 3000) the backend runs separately on port 8000.
@@ -18,10 +18,11 @@ export class ApiError extends Error {
   }
 }
 
-async function getJson<T>(path: string, signal: AbortSignal): Promise<T> {
+async function getJson<T>(path: string, signal: AbortSignal, init: RequestInit = {}): Promise<T> {
   let r: Response;
   try {
-    r = await fetch(`${API_BASE}${path}`, { signal });
+    // credentials: the session cookie that links follow-up questions to the last answer.
+    r = await fetch(`${API_BASE}${path}`, { signal, credentials: "include", ...init });
   } catch (err) {
     if ((err as Error).name === "AbortError") throw new ApiError("timeout", "timeout");
     throw new ApiError("network", "network");
@@ -93,4 +94,13 @@ export async function transcribe(wav: Blob, lang: string, signal: AbortSignal): 
     throw new ApiError("server", msg || `Server error (${r.status}).`, r.status);
   }
   return body as Transcript;
+}
+
+/** Follow-up question, answered from the data stored with this session's last answer. */
+export function postFollowup(question: string, lang: string, signal: AbortSignal): Promise<FollowupResponse> {
+  return getJson<FollowupResponse>("/api/followup", signal, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, lang }),
+  });
 }

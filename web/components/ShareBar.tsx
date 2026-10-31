@@ -58,7 +58,7 @@ export default function ShareBar({ res, L }: { res: AdviceResponse; L: Labels })
         <button
           type="button"
           onClick={async () => setState((await copyText(text)) ? "copied" : "failed")}
-          className="inline-flex min-h-11 items-center rounded-md border border-primary/60 px-4 font-semibold text-primary hover:bg-primary-soft"
+          className="inline-flex min-h-11 items-center rounded-md border border-primary/60 px-4 font-semibold text-primary hover:bg-accent/20"
         >
           {state === "copied" ? `✓ ${L.copied}` : L.copySummary}
         </button>
@@ -66,14 +66,14 @@ export default function ShareBar({ res, L }: { res: AdviceResponse; L: Labels })
           href={`https://wa.me/?text=${encodeURIComponent(text)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex min-h-11 items-center rounded-md border border-primary/60 px-4 font-semibold text-primary hover:bg-primary-soft"
+          className="inline-flex min-h-11 items-center rounded-md border border-primary/60 px-4 font-semibold text-primary hover:bg-accent/20"
         >
           {L.shareWhatsapp}
         </a>
       </div>
       {state === "failed" && (
         <>
-          <p role="alert" className="mt-2 text-sm text-destructive">{L.copyFailed}</p>
+          <p role="alert" className="mt-2 text-sm text-destructive-text">{L.copyFailed}</p>
           <textarea readOnly value={text} rows={6} className="mt-2 w-full rounded-md border border-border bg-background p-2 text-sm" />
         </>
       )}

@@ -120,15 +120,15 @@ export default function MicButton({
         aria-pressed={recording}
         className={`inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm font-semibold transition disabled:cursor-progress disabled:opacity-70 ${
           recording
-            ? "border-destructive bg-destructive-soft text-foreground"
-            : "border-primary/60 text-primary hover:bg-primary/10"
+            ? "border-accent bg-accent/20 text-foreground"
+            : "border-primary/60 text-primary hover:bg-accent/20"
         }`}
       >
         {busy ? <Spinner /> : recording ? <StopIcon /> : <MicIcon />}
         <span>{recording ? L.micStop : L.micSpeak}</span>
         {recording && (
           <>
-            <span className="tabular-nums text-muted">
+            <span className="tabular-nums text-muted-foreground">
               0:{String(seconds).padStart(2, "0")} / 0:{voice.MAX_RECORD_SECONDS}
             </span>
             {/* Input level, so the farmer can see the microphone is hearing them. */}
@@ -147,7 +147,7 @@ export default function MicButton({
       {message && (
         <p
           role={message.tone === "error" ? "alert" : "status"}
-          className={`max-w-md text-right text-xs ${message.tone === "error" ? "text-destructive" : "text-muted"}`}
+          className={`max-w-md text-right text-xs ${message.tone === "error" ? "text-destructive-text" : "text-muted-foreground"}`}
         >
           {message.text}
         </p>

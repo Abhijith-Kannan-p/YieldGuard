@@ -20,10 +20,10 @@ export default function SourceFooter({ sources, L }: { sources: SourceView[]; L:
               <a href={p.url} target="_blank" rel="noopener" className="font-semibold underline hover:text-primary">
                 {p.name}
               </a>{" "}
-              <span className="text-muted">({p.licence})</span>
+              <span className="text-muted-foreground">({p.licence})</span>
               <ul className="mt-1 space-y-0.5 text-sm">
                 {used.map((s) => (
-                  <li key={s.id} className={s.status !== "ok" ? "text-destructive" : s.stale ? "text-amber" : "text-muted"}>
+                  <li key={s.id} className={s.status !== "ok" ? "text-destructive-text" : s.stale ? "text-warning" : "text-muted-foreground"}>
                     {s.name}:{" "}
                     {s.status === "ok"
                       ? `${L.fetched} ${fmtFetched(s.fetched_at)}${s.stale ? ` (${L.staleTag})` : s.cached ? ` (${L.cached})` : ""}`

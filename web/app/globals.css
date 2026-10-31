@@ -1,41 +1,53 @@
 @import "tailwindcss";
 
-/* Sage Garden theme. Every colour lives here as a CSS variable.
-   Contrast against --background (#111111): foreground 16.9:1, muted 7.8:1, primary 6.2:1,
-   amber 5.9:1, red 5.0:1 (all pass WCAG AA). */
+/* Nature palette on a neutral dark background. Every colour lives here as a CSS variable.
+   The app is dark-only (no light mode): color-scheme is dark and there is no light variant.
+   Contrast (WCAG): foreground 17.7:1 on background, 16.3:1 on card; muted-foreground 7.0:1 on card;
+   primary-foreground on primary 7.0:1; primary as text 6.4:1 on card; warning 5.6:1 on card;
+   destructive-text 5.1:1 on card; white on destructive 5.6:1; accent-foreground on accent 4.7:1. */
 :root {
-  --background: #111111;
-  --foreground: #f2f2f0;
-  --card: #1a1a1a;
-  --card-raised: #202020;
-  --border: #2a2a2a;
-  --muted: #a3a8a4;
-  --primary: #7d9a86; /* sage: safe / ok */
-  --primary-foreground: #111111; /* dark text on sage: 6.2:1 (white would be 3.1:1) */
-  --primary-soft: rgba(125, 154, 134, 0.16);
-  --amber: #d97706; /* drought, waterlogging, heat and heavy-rain warnings */
-  --amber-soft: rgba(217, 119, 6, 0.14);
-  --destructive: #ef4444; /* errors only */
-  --destructive-soft: rgba(239, 68, 68, 0.13);
-  --rain: #6b9bd1;
+  --primary: #4caf50; /* primary buttons, active field, safe strip cells, tagline, focus rings */
+  --primary-foreground: #0a0f0a;
+  --accent: #2e7d32; /* hover states and small highlights only. Spec #388e3c adjusted: #f5f5f5 on it was 3.8:1 */
+  --accent-foreground: #f5f5f5;
+  --secondary: #2a2f2a;
+  --secondary-foreground: #f5f5f5;
+  --muted: #1f231f; /* neutral raised surfaces */
+  --muted-foreground: #a3a3a3; /* secondary text */
+  --background: #0d0f0d;
+  --card: #161916;
+  --border: #2a2f2a;
+  --foreground: #f5f5f5;
+  --destructive: #c62828; /* errors only: fills and borders */
+  --destructive-foreground: #ffffff;
+  --destructive-text: #ef5350; /* red text on dark surfaces (#c62828 as text was 3.2:1 on card) */
+  --destructive-soft: rgba(198, 40, 40, 0.13);
+  --warning: #d97706; /* drought, waterlogging, heat, heavy-rain and fertiliser-delay warnings */
+  --warning-foreground: #0a0a0a;
+  --warning-soft: rgba(217, 119, 6, 0.14);
   --radius: 0.5rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-raised: var(--card-raised);
-  --color-border: var(--border);
-  --color-muted: var(--muted);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
-  --color-primary-soft: var(--primary-soft);
-  --color-amber: var(--amber);
-  --color-amber-soft: var(--amber-soft);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-foreground: var(--foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-text: var(--destructive-text);
   --color-destructive-soft: var(--destructive-soft);
-  --color-rain: var(--rain);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
   --radius-DEFAULT: var(--radius);
   --radius-md: var(--radius);
   --font-sans: var(--font-latin), var(--font-kannada), var(--font-devanagari), system-ui, "Noto Sans", sans-serif;

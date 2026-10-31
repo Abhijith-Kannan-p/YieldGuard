@@ -12,6 +12,7 @@ Type a village or town, ask a question in your language, and get:
 - **Heat-stress alerts** for any day above 35 °C, and **fertiliser timing** (delay if heavy rain is likely in the next 48 h).
 - A **72-hour strip** of hour cells coloured by spraying safety, and big-number **field status** tiles.
 - **Saved fields** (up to 5, on the device), a **Copy summary / Share on WhatsApp** card, and the **last-known answer** when live data fails.
+- **Follow-up questions** under each answer, answered from the same data without fetching anything new.
 - A **"why" section** that shows every data point used, with its **source and fetch time**, and the rule that was applied.
 
 > Built for the Climate, Resource Infrastructure & Global Supply Resilience buildathon (problem: Multilingual Agritech & Resource Advisory Assistant).
@@ -73,6 +74,8 @@ backend/
     rules/           spray, heavy_rain, deficit, soil, irrigation, heat, fertiliser
     baseline.py      per-district rainfall baseline: background build, saved to data/
     today.py         "Today in your field" summary (landing card, saved fields), cached 1 h per location
+    sessions.py      in-memory sessions (cookie) holding the last answer's data for follow-ups
+    followup.py      follow-up answers from the stored data: limits, data-age check, grounding
     evidence.py      data points + rule outcomes with source and time
     prompts.py       system prompt + JSON output schema
     llm.py           Gemini call (JSON schema output, fallback model on rate limit)
@@ -81,12 +84,12 @@ backend/
     language.py      script-based language detection
     advisor.py       orchestration for one request
     main.py          FastAPI app and routes, serves the built frontend (web/out)
-  tests/             111 tests; fixtures are real API responses (tests only, never imported by app/)
+  tests/             119 tests; fixtures are real API responses (tests only, never imported by app/)
   devtools/          USE_FIXTURES=1 local dev server (never used in deployment)
 web/                 Next.js (App Router, TypeScript, Tailwind), built as a static export
   app/page.tsx         landing page (shader background, TextRoll title, live "Today in your field" card)
   app/advice/page.tsx  advice dashboard
-  components/          AdviceApp, AdviceResult, StatTiles, HourStrip, FieldPlanner, SavedFields, ShareBar,
+  components/          AdviceApp, AdviceResult, FollowUps, StatTiles, HourStrip, FieldPlanner, SavedFields, ShareBar,
                        SourceFooter, TodayCard, MicButton, ShaderBackground, TextRoll, AttributionFooter
   lib/                 API client, types, EN/HI/KN labels, formatting, device storage, voice
 render.yaml          deployment blueprint (no secrets)
@@ -146,6 +149,7 @@ All thresholds are in [`backend/app/config.py`](backend/app/config.py) and also 
 | `SOIL_SAND_HIGH_PCT` / `SOIL_CLAY_HIGH_PCT` / `SOIL_PH_LOW` / `SOIL_PH_HIGH` | 60 / 40 / 5.5 / 8.5 | soil flags |
 | `TTL_FORECAST` / `TTL_TODAY` / `TTL_SOIL` / `TTL_BASELINE` | 1 h / 1 h / 7 days / 30 days | caches |
 | `RATE_LIMIT_BACKOFF_S` | 60 | Open-Meteo-only pause after HTTP 429 |
+| `SESSION_TTL_S` / `FOLLOWUP_LIMIT` / `FOLLOWUP_WINDOW_S` / `FOLLOWUP_MAX_DATA_AGE_S` | 30 min / 10 / 30 min / 60 min | follow-up sessions, limit and data age |
 
 ---
 
@@ -160,6 +164,17 @@ All thresholds are in [`backend/app/config.py`](backend/app/config.py) and also 
 - **Last-known answer:** the last answer for each place is kept on the device. If the live request fails, or a source fails, the saved answer is shown with "Last updated … ago" and the name of the failed source.
 - **Voice input:** tap **Speak**, say the question, tap **Stop** (auto-stops after 30 s). The browser records with `MediaRecorder`, shows the input level, rejects silent recordings locally ("check that the right microphone is selected"), converts the audio to 16 kHz mono WAV, and posts it to `/api/transcribe`, where Gemini transcribes it in English, Hindi (Devanagari) or Kannada (Kannada script). The text goes into the question box so the farmer can check it before asking. This replaced the browser's `SpeechRecognition`, which sends audio to Google from Chrome only, fails in Brave and Opera, and has patchy Kannada support.
 - **Advice (`/advice/`):** location (default Dharwad, with Karnataka place suggestions and GPS), question, language (Auto / English / हिन्दी / ಕನ್ನಡ), a **Speak** button for voice questions, and a **Listen** button that reads the answer aloud when the browser has a voice for that language. It shows loading, empty and error states, a red notice for each failed source saying which part of the answer is missing, amber warnings, the answer with a "Why this advice" section, the rules applied, the 72-hour strip, the irrigation planner, heat and fertiliser cards, a table with value, data date, source and fetch time for every number, and the attribution footer.
+
+## Follow-up questions
+
+Below each answer is a follow-up box ("What about Sunday morning?").
+
+- **Stored, not refetched.** When a full answer is made, its data (location, every data point with source and fetch time, rule results, the 72-hour and 7-day forecast rows) is kept **in server memory** in a session, keyed by an `HttpOnly`, `SameSite=Lax` cookie (`yg_session`). No database. Sessions expire 30 minutes after last use, and a server restart clears them.
+- **No new API calls.** `POST /api/followup` answers only from that stored data: it never calls Open-Meteo or SoilGrids (a test cuts off every data source and checks that nothing is called). Only Gemini is called.
+- **Grounded.** Gemini gets the stored data and the question, must cite the ids it used (data points, `rule:…`, `hour:…`, `day:…`), and must say when the data does not cover the question. Unknown ids are dropped, and an answer that cites nothing from the stored data is treated as **not covered**, whatever the model says. Numbers are checked against the stored data like full answers.
+- **Shown below the previous answer** with its own "Why this answer" section (each citation with source, data time and the **original fetch time**).
+- **Data age.** If the stored forecast is more than 60 minutes old, the follow-up is not answered; the page says so and offers **Refresh data**, which runs a new full request.
+- **Limit.** 10 follow-ups per session per 30 minutes; the page shows how many are used and a clear message when the limit is reached.
 
 ## Run locally
 
@@ -210,6 +225,7 @@ Demo link format: `/advice/?location=Hubballi&q=Can+I+spray+tomorrow%3F&lang=kn`
 | `GET /advice?location=…&question=…&lang=en\|hi\|kn` | Same JSON as `/api/advice`. Without `question`, `/advice` serves the advice page. |
 | `POST /api/transcribe?lang=auto\|en\|hi\|kn` | Body: 16-bit PCM WAV (max 30 s). Returns `{text, language, model, transcribed_at}` |
 | `GET /api/today?location=…` (or `&lat=…&lon=…`) | "Today in your field": next spray window, rain chance next 24 h, soil summary, warnings, with fetch times. Cached 1 h per location; no language model |
+| `POST /api/followup` (JSON `{"question", "lang"}`, session cookie) | Follow-up answered from the last answer's stored data. Errors: `409 no_session`, `409 data_stale` (older than 60 min), `429 followup_limit` |
 | `GET /api/locations?q=…` | Karnataka place search |
 | `GET /api/rules` | Thresholds in use |
 | `GET /api/health` | Status, whether the LLM key is configured (never the key itself), and which rainfall baselines are stored, building or failed. Calls no external service. |
@@ -238,6 +254,7 @@ Errors return JSON `{"error": {"code", "message"}}`: `404 location_not_found`, `
 | `LOG_LEVEL` | No | `INFO` | Server log level |
 | `PYTHON_VERSION`, `NODE_VERSION` | Render only | `3.12.8`, `22.12.0` | Set in `render.yaml` |
 | `NEXT_PUBLIC_API_BASE` | No | same origin | Only for hosting the frontend separately from the API |
+| `CORS_ORIGINS` | No | `http://localhost:3000,http://127.0.0.1:3000` | Origins allowed to send the session cookie cross-origin (Next.js dev server only) |
 | `YIELDGUARD_DATA_DIR` / `YIELDGUARD_CACHE_DIR` | No | `backend/data`, `backend/.cache` | Where the rainfall baseline and the SoilGrids cache are saved |
 
 ## Security

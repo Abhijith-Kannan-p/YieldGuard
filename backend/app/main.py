@@ -3,12 +3,13 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
-from . import baseline, config, llm, today
+from . import baseline, config, followup, llm, sessions, today
 from .advisor import AdviceError, advise
 from .http import close_client
 from .sources import geocode
@@ -34,7 +35,19 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="YieldGuard - Multilingual Agritech Risk Advisor", version="1.0.0", lifespan=lifespan)
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET", "POST"], allow_headers=["*"])
+# Same-origin in production. The Next.js dev server (another port) needs credentials for the session cookie,
+# which rules out "*", so allowed origins are listed in config.CORS_ORIGINS.
+app.add_middleware(CORSMiddleware, allow_origins=config.CORS_ORIGINS, allow_credentials=True,
+                   allow_methods=["GET", "POST"], allow_headers=["*"])
+
+
+def _remember_answer(request: Request, response: Response, result: dict) -> None:
+    """Keep this answer's data in the in-memory session so follow-ups can reuse it without new API calls."""
+    s = sessions.get_or_create(request.cookies.get(config.SESSION_COOKIE))
+    sessions.save_answer(s, followup.context_from(result))
+    secure = request.url.scheme == "https" or request.headers.get("x-forwarded-proto") == "https"
+    response.set_cookie(config.SESSION_COOKIE, s.id, max_age=config.SESSION_TTL_S, httponly=True,
+                        samesite="lax", secure=secure, path="/")
 
 
 @app.exception_handler(AdviceError)
@@ -51,13 +64,29 @@ async def unhandled_error_handler(request: Request, exc: Exception):
 
 @app.get("/api/advice")
 async def get_advice(
+    request: Request,
+    response: Response,
     q: str = Query(..., description="The farmer's question, in English, Hindi or Kannada"),
     location: str | None = Query(None, description="Place name in Karnataka (default: Dharwad)"),
     lat: float | None = Query(None, ge=-90, le=90),
     lon: float | None = Query(None, ge=-180, le=180),
     lang: str | None = Query("auto", description="en | hi | kn | auto"),
 ):
-    return await advise(q, location=location, lat=lat, lon=lon, lang=lang)
+    result = await advise(q, location=location, lat=lat, lon=lon, lang=lang)
+    _remember_answer(request, response, result)
+    return result
+
+
+class FollowupIn(BaseModel):
+    question: str = Field(..., max_length=2000)
+    lang: str | None = "auto"
+
+
+@app.post("/api/followup")
+async def post_followup(body: FollowupIn, request: Request):
+    """Answer a follow-up from the data stored with this session's last answer. Calls no weather or soil API."""
+    s = sessions.get(request.cookies.get(config.SESSION_COOKIE))
+    return await followup.answer(s, body.question, body.lang)
 
 
 @app.post("/api/transcribe")
@@ -140,6 +169,8 @@ async def health():
 
 @app.get("/advice", include_in_schema=False)
 async def advice_alias(
+    request: Request,
+    response: Response,
     question: str | None = Query(None),
     q: str | None = Query(None),
     location: str | None = Query(None),
@@ -150,7 +181,9 @@ async def advice_alias(
     """GET /advice?location=...&question=...&lang=en|hi|kn returns JSON (same as /api/advice).
     Without a question it serves the advice page, so /advice works in a browser too."""
     if question is not None or q is not None:
-        return await advise(question or q or "", location=location, lat=lat, lon=lon, lang=lang)
+        result = await advise(question or q or "", location=location, lat=lat, lon=lon, lang=lang)
+        _remember_answer(request, response, result)
+        return result
     page = FRONTEND_DIR / "advice" / "index.html"
     if page.is_file():
         return FileResponse(page)

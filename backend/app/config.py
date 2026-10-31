@@ -165,6 +165,21 @@ LLM_MAX_TOKENS = 8192  # includes the model's thinking tokens
 
 SUPPORTED_LANGUAGES = {"en": "English", "hi": "Hindi", "kn": "Kannada"}
 
+# ---------------------------------------------------------------------------
+# Follow-up questions: the last answer's data is kept in server memory per session
+# (cookie SESSION_COOKIE), never in a database. Follow-ups reuse it without new API calls.
+# ---------------------------------------------------------------------------
+SESSION_COOKIE = "yg_session"
+SESSION_TTL_S = 30 * 60            # a session (and its stored answer data) expires after 30 min without use
+SESSION_MAX = 2000                 # most sessions kept in memory; the least recently used are dropped
+FOLLOWUP_LIMIT = 10                # follow-up questions allowed per session...
+FOLLOWUP_WINDOW_S = 30 * 60        # ...within this rolling window
+FOLLOWUP_MAX_DATA_AGE_S = 60 * 60  # stored forecast older than this -> ask the farmer to refresh instead of answering
+# Origins allowed to call the API with the session cookie from another port (Next.js dev server only;
+# in production the page and API share one origin).
+CORS_ORIGINS = [o.strip() for o in os.getenv("CORS_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+                if o.strip()]
+
 # Voice input: the browser records up to TRANSCRIBE_MAX_SECONDS and uploads 16 kHz mono WAV
 # (32 kB per second), which Gemini transcribes.
 TRANSCRIBE_MAX_SECONDS = 30

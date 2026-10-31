@@ -15,8 +15,8 @@ function classify(h: ForecastHour, maxWind: number, maxProb: number): Safety {
 
 const CELL: Record<Safety, string> = {
   safe: "bg-primary text-primary-foreground border-primary",
-  risk: "bg-amber-soft text-foreground border-amber",
-  missing: "bg-destructive-soft text-destructive border-destructive",
+  risk: "bg-warning-soft text-foreground border-warning",
+  missing: "bg-destructive-soft text-destructive-text border-destructive",
 };
 
 /** 72 hour cells coloured by spraying safety. Tap a cell to see its values. */
@@ -39,7 +39,7 @@ export default function HourStrip({
     <section className="rounded-md border border-border bg-card p-4">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-bold">{L.stripTitle}</h2>
-        <p className="text-sm text-muted">{L.stripHelp}</p>
+        <p className="text-sm text-muted-foreground">{L.stripHelp}</p>
       </div>
       <div className="mt-2 flex flex-wrap gap-3 text-sm">
         <Legend cls={CELL.safe} label={`${L.legendSafe} (< ${maxWind} km/h, < ${maxProb}%)`} />
@@ -55,7 +55,7 @@ export default function HourStrip({
             const newDay = i === 0 || hr === "00";
             return (
               <div key={x.time} className="flex flex-col items-center">
-                <span className="h-6 whitespace-nowrap text-sm font-semibold text-muted">{newDay ? fmtLocal(x.time.slice(0, 10)) : ""}</span>
+                <span className="h-6 whitespace-nowrap text-sm font-semibold text-muted-foreground">{newDay ? fmtLocal(x.time.slice(0, 10)) : ""}</span>
                 <button
                   type="button"
                   role="option"
@@ -76,10 +76,10 @@ export default function HourStrip({
       </div>
 
       {h && (
-        <div className="mt-3 rounded-md border border-border bg-card-raised p-3" aria-live="polite">
+        <div className="mt-3 rounded-md border border-border bg-muted p-3" aria-live="polite">
           <p className="font-semibold">
             {fmtLocal(h.time)}
-            {inWindow(h.time) && <span className="ml-2 rounded bg-primary-soft px-2 py-0.5 text-sm text-primary">{L.inWindow}</span>}
+            {inWindow(h.time) && <span className="ml-2 rounded bg-muted px-2 py-0.5 text-sm text-primary">{L.inWindow}</span>}
           </p>
           <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-5">
             <Val k={L.wind} v={h.wind_speed_10m} u="km/h" />
@@ -88,7 +88,7 @@ export default function HourStrip({
             <Val k={L.temp} v={h.temperature_2m} u="°C" />
             <Val k={L.humidity} v={h.relative_humidity_2m} u="%" />
           </dl>
-          <p className="mt-2 text-sm text-muted">
+          <p className="mt-2 text-sm text-muted-foreground">
             {source} · {L.fetched} {fmtFetched(fetchedAt)}
           </p>
         </div>
@@ -109,7 +109,7 @@ function Legend({ cls, label }: { cls: string; label: string }) {
 function Val({ k, v, u }: { k: string; v: number | null; u: string }) {
   return (
     <div>
-      <dt className="text-sm text-muted">{k}</dt>
+      <dt className="text-sm text-muted-foreground">{k}</dt>
       <dd className="stat-number text-xl font-bold">{v == null ? "–" : `${v} ${u}`}</dd>
     </div>
   );

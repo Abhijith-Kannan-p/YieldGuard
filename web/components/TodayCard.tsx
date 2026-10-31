@@ -32,12 +32,12 @@ export default function TodayCard() {
   return (
     <section
       aria-label="Today in your field"
-      className="mx-auto mt-6 w-full max-w-2xl rounded-lg border border-white/15 bg-black/60 p-4 text-left backdrop-blur-sm sm:p-5"
+      className="mx-auto mt-6 w-full max-w-2xl rounded-lg border border-border bg-background/85 p-4 text-left backdrop-blur-sm sm:p-5"
     >
-      <h2 className="text-lg font-bold text-white">
+      <h2 className="text-lg font-bold text-foreground">
         Today in your field
         {state.s === "ok" && (
-          <span className="ml-2 font-normal text-[#c9d8cc]">
+          <span className="ml-2 font-normal text-muted-foreground">
             · {state.d.location.name}
             {state.d.location.district ? `, ${state.d.location.district}` : ""}
           </span>
@@ -46,7 +46,7 @@ export default function TodayCard() {
 
       {state.s === "loading" && (
         <div className="mt-3 grid animate-pulse gap-3 sm:grid-cols-3" aria-hidden="true">
-          {[0, 1, 2].map((i) => <div key={i} className="h-24 rounded-md bg-white/10" />)}
+          {[0, 1, 2].map((i) => <div key={i} className="h-24 rounded-md bg-muted" />)}
         </div>
       )}
       {state.s === "error" && (
@@ -72,10 +72,10 @@ function Body({ d }: { d: TodaySummary }) {
           ) : d.spray.next ? (
             <>
               <Big>{fmtLocal(d.spray.next.start)}</Big>
-              <p className="text-white/85">until {d.spray.next.end.slice(11, 16)} · {d.spray.next.hours} h</p>
+              <p className="text-foreground">until {d.spray.next.end.slice(11, 16)} · {d.spray.next.hours} h</p>
             </>
           ) : (
-            <p className="text-white/85">No safe window in the next {d.spray.hours_checked} hours</p>
+            <p className="text-foreground">No safe window in the next {d.spray.hours_checked} hours</p>
           )}
           {fcMeta && <Meta>{fcMeta}</Meta>}
         </Item>
@@ -85,11 +85,11 @@ function Body({ d }: { d: TodaySummary }) {
             <Fail text={fc.error ?? "forecast unavailable"} />
           ) : (
             <>
-              <Big amber={d.rain_24h.status === "warning"}>
+              <Big warning={d.rain_24h.status === "warning"}>
                 {d.rain_24h.max_prob_pct ?? "–"}
                 <span className="text-lg">%</span>
               </Big>
-              <p className="text-white/85">
+              <p className="text-foreground">
                 {d.rain_24h.max_prob_time ? `peak ${fmtLocal(d.rain_24h.max_prob_time)}` : ""}
                 {d.rain_24h.total_mm != null ? ` · ${d.rain_24h.total_mm} mm total` : ""}
               </p>
@@ -104,7 +104,7 @@ function Body({ d }: { d: TodaySummary }) {
           ) : (
             <>
               <Big>pH {d.soil.ph ?? "–"}</Big>
-              <p className="text-white/85">
+              <p className="text-foreground">
                 sand {d.soil.sand_pct ?? "–"}% · clay {d.soil.clay_pct ?? "–"}%
                 {d.soil.flags.length ? ` · check: ${d.soil.flags.join(", ").replace(/_/g, " ")}` : " · no flags"}
               </p>
@@ -122,8 +122,8 @@ function Body({ d }: { d: TodaySummary }) {
       {d.warnings.length > 0 && (
         <ul className="mt-3 flex flex-wrap gap-2">
           {d.warnings.map((w) => (
-            <li key={w.id} className="rounded-md border border-amber bg-amber-soft px-2 py-1 text-white">
-              <span className="font-semibold text-amber">⚠ {L.rule[w.id] ?? L.status[w.id] ?? w.id}</span>
+            <li key={w.id} className="rounded-md border border-warning bg-warning-soft px-2 py-1 text-foreground">
+              <span className="font-semibold text-warning">⚠ {L.rule[w.id] ?? L.status[w.id] ?? w.id}</span>
               {w.value != null ? ` ${w.value}${w.unit === "%" ? "%" : ` ${w.unit}`}` : ""}
               {w.time ? ` · ${fmtLocal(w.time)}` : ""}
             </li>
@@ -131,10 +131,10 @@ function Body({ d }: { d: TodaySummary }) {
         </ul>
       )}
 
-      <p className="mt-3 text-sm text-white/70">
+      <p className="mt-3 text-sm text-muted-foreground">
         Summary computed {fmtFetched(d.computed_at)}, refreshed at most once an hour. Open-Meteo.com (CC BY 4.0) · ISRIC
         SoilGrids v2.0 (CC BY 4.0).{" "}
-        <Link href="/advice/" className="underline hover:text-white">
+        <Link href="/advice/" className="underline hover:text-primary">
           Full advice →
         </Link>
       </p>
@@ -144,21 +144,21 @@ function Body({ d }: { d: TodaySummary }) {
 
 function Item({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-white/10 bg-white/5 p-3">
-      <h3 className="text-sm font-semibold uppercase tracking-wide text-[#c9d8cc]">{title}</h3>
+    <div className="rounded-md border border-border bg-muted/70 p-3">
+      <h3 className="text-sm font-semibold uppercase tracking-wide text-primary">{title}</h3>
       <div className="mt-1">{children}</div>
     </div>
   );
 }
 
-function Big({ children, amber }: { children: React.ReactNode; amber?: boolean }) {
-  return <p className={`stat-number text-3xl font-bold ${amber ? "text-amber" : "text-white"}`}>{children}</p>;
+function Big({ children, warning }: { children: React.ReactNode; warning?: boolean }) {
+  return <p className={`stat-number text-3xl font-bold ${warning ? "text-warning" : "text-foreground"}`}>{children}</p>;
 }
 
 function Meta({ children }: { children: React.ReactNode }) {
-  return <p className="mt-2 text-sm leading-snug text-white/65">{children}</p>;
+  return <p className="mt-2 text-sm leading-snug text-muted-foreground">{children}</p>;
 }
 
 function Fail({ text }: { text: string }) {
-  return <p className="text-destructive">{text}</p>;
+  return <p className="text-destructive-text">{text}</p>;
 }

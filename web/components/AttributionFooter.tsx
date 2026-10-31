@@ -1,6 +1,6 @@
 export default function AttributionFooter({ note }: { note?: string }) {
   return (
-    <footer className="mx-auto w-full max-w-4xl px-4 pb-8 pt-4 text-xs text-muted">
+    <footer className="mx-auto w-full max-w-4xl px-4 pb-8 pt-4 text-xs text-muted-foreground">
       <p>
         Weather and rainfall:{" "}
         <a className="underline hover:text-foreground" href="https://open-meteo.com/" target="_blank" rel="noopener">

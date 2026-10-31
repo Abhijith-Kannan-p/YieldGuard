@@ -43,28 +43,28 @@ export default function SavedFields({
     <section className="rounded-md border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-lg font-bold">
-          {L.savedTitle} <span className="text-base font-normal text-muted">{fields.length}/{MAX_FIELDS}</span>
+          {L.savedTitle} <span className="text-base font-normal text-muted-foreground">{fields.length}/{MAX_FIELDS}</span>
         </h2>
         {canSave && storageOk && !full && (
           <button
             type="button"
             onClick={onSaveCurrent}
-            className="min-h-11 rounded-md border border-primary/60 px-3 font-semibold text-primary hover:bg-primary-soft"
+            className="min-h-11 rounded-md border border-primary/60 px-3 font-semibold text-primary hover:bg-accent/20"
           >
             + {L.saveField}
           </button>
         )}
       </div>
-      {!storageOk && <p className="mt-2 text-sm text-amber">{L.storageBlocked}</p>}
-      {canSave && full && <p className="mt-2 text-sm text-muted">{L.savedFull}</p>}
-      {fields.length === 0 && storageOk && <p className="mt-2 text-muted">{L.noFields}</p>}
+      {!storageOk && <p className="mt-2 text-sm text-warning">{L.storageBlocked}</p>}
+      {canSave && full && <p className="mt-2 text-sm text-muted-foreground">{L.savedFull}</p>}
+      {fields.length === 0 && storageOk && <p className="mt-2 text-muted-foreground">{L.noFields}</p>}
 
       <ul className="mt-3 space-y-2">
         {fields.map((f) => {
           const st = status[f.id] ?? { state: "loading" };
           const active = f.id === selectedId;
           return (
-            <li key={f.id} className={`flex items-stretch gap-2 rounded-md border ${active ? "border-primary bg-primary-soft" : "border-border"}`}>
+            <li key={f.id} className={`flex items-stretch gap-2 rounded-md border ${active ? "border-primary bg-muted" : "border-border"}`}>
               <button
                 type="button"
                 onClick={() => onSelect(f)}
@@ -79,7 +79,7 @@ export default function SavedFields({
                 onClick={() => onRemove(f)}
                 aria-label={`${L.removeField}: ${f.name}`}
                 title={L.removeField}
-                className="min-h-11 min-w-11 rounded-r-md px-3 text-muted hover:text-destructive"
+                className="min-h-11 min-w-11 rounded-r-md px-3 text-muted-foreground hover:text-destructive-text"
               >
                 ✕
               </button>
@@ -92,15 +92,15 @@ export default function SavedFields({
 }
 
 function FieldStatus({ st, L }: { st: Status; L: Labels }) {
-  if (st.state === "loading") return <span className="block text-sm text-muted">{L.statusLoading}</span>;
-  if (st.state === "error") return <span className="block text-sm text-destructive">{L.statusFailed}: {st.message}</span>;
+  if (st.state === "loading") return <span className="block text-sm text-muted-foreground">{L.statusLoading}</span>;
+  if (st.state === "error") return <span className="block text-sm text-destructive-text">{L.statusFailed}: {st.message}</span>;
   const d = st.data;
   const next = d.spray?.next;
   return (
     <span className="block text-sm">
-      <span className="text-muted">{L.nextSpray}: </span>
+      <span className="text-muted-foreground">{L.nextSpray}: </span>
       {d.spray == null ? (
-        <span className="text-destructive">{d.sources.forecast.error ?? L.statusFailed}</span>
+        <span className="text-destructive-text">{d.sources.forecast.error ?? L.statusFailed}</span>
       ) : next ? (
         <span className="text-primary">
           {fmtLocal(next.start)} – {next.end.slice(11, 16)}
@@ -109,12 +109,12 @@ function FieldStatus({ st, L }: { st: Status; L: Labels }) {
         <span>{L.noSprayShort}</span>
       )}
       {d.warnings.map((w) => (
-        <span key={w.id} className="ml-2 inline-block rounded bg-amber-soft px-1.5 text-amber">
+        <span key={w.id} className="ml-2 inline-block rounded bg-warning-soft px-1.5 text-warning">
           ⚠ {L.status[w.id] ?? L.rule[w.id] ?? w.id}
         </span>
       ))}
       {d.sources.forecast.fetched_at && (
-        <span className="block text-muted">
+        <span className="block text-muted-foreground">
           {d.sources.forecast.name} · {L.fetched} {fmtLocal(d.sources.forecast.fetched_at)}
           {d.sources.forecast.stale ? ` (${L.staleTag})` : ""}
         </span>

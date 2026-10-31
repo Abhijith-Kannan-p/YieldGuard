@@ -174,3 +174,22 @@ export interface TodaySummary {
   soil: { sand_pct: number | null; clay_pct: number | null; ph: number | null; flags: string[]; offset_km: number | null } | null;
   warnings: { id: string; time: string | null; value: number | null; unit: string }[];
 }
+
+/** POST /api/followup */
+export interface FollowupResponse {
+  followup_id: string;
+  question: string;
+  language: Lang;
+  covered: boolean;
+  not_covered_message: string | null;
+  answer: { text: string; why: CitedItem[]; missing_data: string[]; disclaimer: string };
+  evidence_points: DataPoint[];
+  unverified_numbers: string[];
+  generated_by: string;
+  generated_at: string;
+  based_on_request_id: string;
+  data_fetched_at: string;
+  data_age_minutes: number;
+  followups_used: number;
+  followups_limit: number;
+}
