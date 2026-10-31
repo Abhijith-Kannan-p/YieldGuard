@@ -190,6 +190,37 @@ async def advice_alias(
     return _no_frontend()
 
 
+class ExportFiles(StaticFiles):
+    """Static files for the Next.js export. Link prefetches ask for segment data as
+    /advice/__next.advice.__PAGE__.txt while the export writes /advice/__next.advice/__PAGE__.txt,
+    so a missing __next.* file is retried with its last dot turned into a folder separator."""
+
+    @staticmethod
+    def _nested(path: str) -> str | None:
+        name = path.replace("\\", "/").rsplit("/", 1)[-1]
+        if not name.startswith("__next.") or not name.endswith(".txt"):
+            return None
+        folder, _, leaf = name[: -len(".txt")].rpartition(".")
+        if not folder or not leaf:
+            return None
+        return path[: len(path) - len(name)] + f"{folder}/{leaf}.txt"
+
+    async def get_response(self, path: str, scope):
+        from starlette.exceptions import HTTPException as StarletteHTTPException
+
+        nested = self._nested(path)
+        try:
+            response = await super().get_response(path, scope)
+        except StarletteHTTPException as e:
+            # Without a 404.html, a missing file raises; with html=True and 404.html it is served instead.
+            if e.status_code != 404 or nested is None:
+                raise
+            return await super().get_response(nested, scope)
+        if response.status_code == 404 and nested is not None:
+            return await super().get_response(nested, scope)
+        return response
+
+
 def _no_frontend():
     return HTMLResponse("<h1>YieldGuard API</h1><p>The web frontend is not built. Run <code>npm run build</code> "
                         "in <code>web/</code>, or use <a href='/docs'>/docs</a>.</p>", status_code=503)
@@ -198,7 +229,7 @@ def _no_frontend():
 if (FRONTEND_DIR / "index.html").is_file():
     # Mounted last so the /api routes above take precedence. html=True serves /advice/ -> advice/index.html
     # and 404.html for unknown paths.
-    app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="web")
+    app.mount("/", ExportFiles(directory=FRONTEND_DIR, html=True), name="web")
 else:
     log.warning("frontend build not found at %s - serving the API only", FRONTEND_DIR)
 
