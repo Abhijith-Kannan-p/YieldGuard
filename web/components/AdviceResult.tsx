@@ -12,7 +12,7 @@ export { WARN_STATUSES } from "./AnswerSections";
 /** One answer in a fixed order on a 12-column grid (one column on phones):
  *  1 summary bar, 2 now row, 3 next 72 hours, 4 alerts, 5 advice, 6 why (collapsed), 7 data and sources.
  *  The follow-up box and share buttons (8) are rendered below this by the page. */
-export default function AdviceResult({ res, L, onSpeak }: { res: AdviceResponse; L: Labels; onSpeak?: () => void }) {
+export default function AdviceResult({ res, L }: { res: AdviceResponse; L: Labels }) {
   const points = useMemo(() => new Map(res.data_points.map((p) => [p.id, p])), [res.data_points]);
   const spray = res.rules.find((r) => r.id === "spray_window");
   const alerts = collectAlerts(res, points, L);
@@ -40,7 +40,7 @@ export default function AdviceResult({ res, L, onSpeak }: { res: AdviceResponse;
         </div>
       )}
       <Alerts alerts={alerts} L={L} />
-      <AdviceBlock res={res} points={points} L={L} onSpeak={onSpeak} />
+      <AdviceBlock res={res} points={points} L={L} />
       <WhyTable res={res} points={points} L={L} />
       <SourcesTable res={res} L={L} />
     </div>

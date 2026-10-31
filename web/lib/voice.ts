@@ -2,9 +2,7 @@
 // and let the backend (Gemini) transcribe it. This works the same in Chrome, Edge,
 // Firefox, Safari and Brave, and handles Kannada and Hindi, unlike the browser's
 // built-in SpeechRecognition.
-// Voice output: the browser's speechSynthesis, shown only when a voice for the language exists.
-import type { Lang } from "./types";
-
+// Voice output (reading answers aloud) is in lib/speech.ts.
 export const MAX_RECORD_SECONDS = 30;
 const TARGET_RATE = 16_000;
 // Peak level (0..1) a recording must reach to count as speech; below this the mic is
@@ -144,41 +142,4 @@ async function toWav(blob: Blob): Promise<Blob> {
     out.setInt16(44 + i * 2, v < 0 ? v * 0x8000 : v * 0x7fff, true);
   }
   return new Blob([out], { type: "audio/wav" });
-}
-
-// ---- voice output ----------------------------------------------------------
-
-const SPEECH_LANG: Record<Lang, string> = { en: "en-IN", hi: "hi-IN", kn: "kn-IN" };
-
-function voiceFor(lang: Lang): SpeechSynthesisVoice | null {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
-  const code = SPEECH_LANG[lang] ?? "en-IN";
-  const voices = speechSynthesis.getVoices();
-  return voices.find((v) => v.lang === code) || voices.find((v) => v.lang.startsWith(code.slice(0, 2))) || null;
-}
-
-export function canSpeak(lang: Lang): boolean {
-  return voiceFor(lang) !== null;
-}
-
-export function speak(text: string, lang: Lang) {
-  const voice = voiceFor(lang);
-  if (!voice) return;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text);
-  u.voice = voice;
-  u.lang = voice.lang;
-  u.rate = 0.95;
-  speechSynthesis.speak(u);
-}
-
-export function stopSpeaking() {
-  if (typeof window !== "undefined" && "speechSynthesis" in window) speechSynthesis.cancel();
-}
-
-/** Voices load asynchronously in Chrome; call back when they arrive. */
-export function onVoicesReady(cb: () => void): () => void {
-  if (typeof window === "undefined" || !("speechSynthesis" in window)) return () => {};
-  speechSynthesis.addEventListener("voiceschanged", cb);
-  return () => speechSynthesis.removeEventListener("voiceschanged", cb);
 }

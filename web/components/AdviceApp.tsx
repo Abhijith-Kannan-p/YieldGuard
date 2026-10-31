@@ -17,7 +17,7 @@ import {
   saveSelectedField, type LastAnswer, type SavedField,
 } from "@/lib/storage";
 import type { AdviceResponse, Lang, PlaceSuggestion } from "@/lib/types";
-import * as voice from "@/lib/voice";
+import * as speech from "@/lib/speech";
 
 type LangChoice = "auto" | Lang;
 type Phase = "idle" | "loading" | "done" | "error";
@@ -91,7 +91,6 @@ export default function AdviceApp() {
   const storageOk = useSyncExternalStore(subscribeNothing, storageWorks, () => true);
 
   const online = useSyncExternalStore(subscribeOnline, () => navigator.onLine, () => true);
-  const [, setVoicesTick] = useState(0);
 
   const resultRef = useRef<HTMLDivElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -102,7 +101,6 @@ export default function AdviceApp() {
 
   // ---- browser-only setup: saved fields, voice list, shareable links --------
   useEffect(() => {
-    const off = voice.onVoicesReady(() => setVoicesTick((n) => n + 1));
     // The page is prerendered as static HTML; device storage and the query string are only
     // readable after hydration, so copying them into state once on mount is intended.
     const saved = loadFields();
@@ -133,7 +131,6 @@ export default function AdviceApp() {
       setQuestion(q);
       autoSubmit.current = true;
     }
-    return off;
   }, []);
 
   useEffect(() => {
@@ -202,6 +199,7 @@ export default function AdviceApp() {
   const ask = useCallback(
     async (where: Where, q: string) => {
       if (!q || !where.name || phase === "loading") return;
+      speech.stop(); // a new question stops any answer being read aloud
       lastAsk.current = { where, q };
       const params = new URLSearchParams({ q, lang: langChoice, location: where.name });
       if (where.lat != null && where.lon != null) {
@@ -293,11 +291,6 @@ export default function AdviceApp() {
     saveFields(next);
     setSelectedId(id);
     saveSelectedField(id);
-  };
-
-  const speakAnswer = (res: AdviceResponse) => () => {
-    const a = res.answer;
-    voice.speak([a.text, ...a.recommendations.map((r) => r.text), a.disclaimer].join(" "), res.language);
   };
 
   const canSaveCurrent = !!result && !fields.some((f) => f.id === fieldId(result.location.lat, result.location.lon));
@@ -433,13 +426,13 @@ export default function AdviceApp() {
           )}
 
           {phase === "error" && lastKnown && (
-            <LastKnown lk={lastKnown} L={L} onSpeak={voice.canSpeak(lastKnown.entry.res.language) ? speakAnswer(lastKnown.entry.res) : undefined} />
+            <LastKnown lk={lastKnown} L={L} />
           )}
 
           {result && phase === "done" && (
             <>
               {lastKnown && <LastKnown lk={lastKnown} L={L} />}
-              <AdviceResult res={result} L={L} onSpeak={voice.canSpeak(result.language) ? speakAnswer(result) : undefined} />
+              <AdviceResult res={result} L={L} />
               {/* 8. Share buttons and the follow-up box, at the bottom */}
               <section aria-label={L.shareTitle} className="rounded-md border border-border bg-card p-4">
                 <h2 className="text-lg font-bold">{L.shareTitle}</h2>
@@ -463,7 +456,7 @@ export default function AdviceApp() {
 }
 
 /** The last complete answer saved on this device for the same place, labelled with its age. */
-function LastKnown({ lk, L, onSpeak }: { lk: { entry: LastAnswer; failed: string[] }; L: Labels; onSpeak?: () => void }) {
+function LastKnown({ lk, L }: { lk: { entry: LastAnswer; failed: string[] }; L: Labels }) {
   const age = fmtAge(minutesSince(lk.entry.savedAt), L.ageUnits);
   return (
     <section aria-label={L.lastKnownTitle} className="rounded-md border-2 border-warning p-3">
@@ -481,7 +474,7 @@ function LastKnown({ lk, L, onSpeak }: { lk: { entry: LastAnswer; failed: string
       <details open>
         <summary className="min-h-11 cursor-pointer font-semibold">{L.showLastKnown}</summary>
         <div className="mt-3">
-          <AdviceResult res={lk.entry.res} L={L} onSpeak={onSpeak} />
+          <AdviceResult res={lk.entry.res} L={L} />
         </div>
       </details>
     </section>

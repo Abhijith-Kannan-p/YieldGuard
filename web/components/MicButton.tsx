@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { ApiError, transcribe } from "@/lib/api";
 import type { Labels } from "@/lib/i18n";
 import type { Lang } from "@/lib/types";
+import * as speech from "@/lib/speech";
 import * as voice from "@/lib/voice";
 import { MicIcon, Spinner, StopIcon } from "./Icons";
 
@@ -96,7 +97,7 @@ export default function MicButton({
     setMessage(null);
     setSeconds(0);
     setState("starting");
-    voice.stopSpeaking();
+    speech.stop(); // don't record our own voice output
     try {
       rec.current = await voice.startRecording(setLevel, () => void stop());
       setState("recording");

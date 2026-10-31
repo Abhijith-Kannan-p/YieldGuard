@@ -1,6 +1,6 @@
 // The fixed sections of an answer, top to bottom: summary bar, now row, alerts, advice,
 // why table, data and sources. (The 72-hour strip lives in HourStrip.tsx.)
-import { SpeakerIcon } from "./Icons";
+import ListenButton from "./ListenButton";
 import { IrrigationTable } from "./FieldPlanner";
 import { dataDate, fmtAge, fmtFetched, fmtSpan, fmtValue } from "@/lib/format";
 import type { Labels } from "@/lib/i18n";
@@ -161,23 +161,13 @@ export function Alerts({ alerts, L }: { alerts: Alert[]; L: Labels }) {
 }
 
 // ---- 5. Advice --------------------------------------------------------------
-export function AdviceBlock({ res, points, L, onSpeak }: {
-  res: AdviceResponse; points: Map<string, DataPoint>; L: Labels; onSpeak?: () => void;
-}) {
+export function AdviceBlock({ res, points, L }: { res: AdviceResponse; points: Map<string, DataPoint>; L: Labels }) {
+  const spoken = [res.answer.text, ...res.answer.recommendations.map((r) => r.text), res.answer.disclaimer].join(" ");
   return (
     <section data-section="advice" aria-label={L.answer} className={SECTION}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-start justify-between gap-2">
         <h2 className="text-lg font-bold">{L.answer}</h2>
-        {onSpeak && (
-          <button
-            type="button"
-            onClick={onSpeak}
-            className="inline-flex min-h-11 items-center gap-2 rounded-md border border-primary/60 px-3 font-semibold text-primary hover:bg-accent/20"
-          >
-            <SpeakerIcon />
-            <span>{L.listen}</span>
-          </button>
-        )}
+        <ListenButton key={res.request_id} text={spoken} lang={res.language} L={L} />
       </div>
       <div className="mt-2 space-y-1 text-lg leading-relaxed">
         {sentences(res.answer.text).map((s, i) => <p key={i}>{s}</p>)}
