@@ -7,12 +7,14 @@
 Run every 6 hours by .github/workflows/mandi-snapshot.yml, which commits the file to the "data" branch.
 Same request as app/sources/mandi.py (MANDI_URL, MANDI_HEADERS, its query parameters, paging on "total").
 The file holds the raw records as the API returned them, total, fetched_at (Asia/Kolkata) and the source name.
+index.json in the same folder lists the dated files (oldest first) and the latest one; the app reads it.
 Nothing is written when the API fails or returns no usable records; the exit code is then non-zero.
 On failure only a short cause is printed (timeout, refused, DNS, TLS, HTTP status), never the URL or the key.
 """
 import argparse
 import json
 import logging
+import re
 import socket
 import ssl
 import sys
@@ -28,6 +30,8 @@ from app.timeutil import iso, now_local
 OUT_DIR = Path(__file__).resolve().parents[2] / "data" / "mandi"
 RETRYABLE_STATUS = {500, 502, 503, 504}
 RETRY_PAUSE_S = 0.5  # replaced in tests
+INDEX = "index.json"
+DATED = re.compile(r"^\d{4}-\d{2}-\d{2}\.json$")
 
 
 class SnapshotError(Exception):
@@ -129,11 +133,24 @@ def snapshot(transport: httpx.BaseTransport | None = None, out_dir: Path = OUT_D
             records, total = fetch_all(client)
         name, doc = build(records, total, now_local())
         status = save(name, doc, out_dir)
+        index = write_index(out_dir)
     except SnapshotError:
         raise
     except Exception as e:  # anything unexpected: the type only, never the text
         raise SnapshotError(type(e).__name__) from None
-    return {"status": status, "name": name, "date": name.removesuffix(".json"), "records": len(records), "total": total}
+    return {"status": status, "name": name, "date": name.removesuffix(".json"), "records": len(records), "total": total,
+            "index": index}
+
+
+def write_index(out_dir: Path) -> str:
+    """'written' or 'unchanged': index.json lists the dated files actually in the folder."""
+    files = sorted(p.name for p in out_dir.glob("*.json") if DATED.match(p.name))
+    text = json.dumps({"files": files, "latest": files[-1] if files else None}, indent=1) + "\n"
+    path = out_dir / INDEX
+    if path.exists() and path.read_text(encoding="utf-8") == text:
+        return "unchanged"
+    path.write_text(text, encoding="utf-8")
+    return "written"
 
 
 def main(transport: httpx.BaseTransport | None = None, out_dir: Path = OUT_DIR) -> int:

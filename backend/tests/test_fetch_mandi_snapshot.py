@@ -44,7 +44,7 @@ def run(tmp_path, answer, capsys):
 def test_saves_the_raw_snapshot_named_by_its_newest_arrival_date(tmp_path, capsys):
     payload = load_fixture(SNAPSHOT)
     code, calls, printed = run(tmp_path, lambda r: httpx.Response(200, json=payload), capsys)
-    assert code == 0 and [p.name for p in tmp_path.iterdir()] == ["2026-11-01.json"]
+    assert code == 0 and sorted(p.name for p in tmp_path.iterdir()) == ["2026-11-01.json", "index.json"]
     doc = json.loads((tmp_path / "2026-11-01.json").read_text(encoding="utf-8"))
     assert set(doc) == {"source", "fetched_at", "total", "records"}
     assert doc["records"] == payload["records"] and doc["total"] == int(payload["total"])
@@ -122,3 +122,30 @@ def test_missing_key_writes_nothing(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(config, "DATAGOV_API_KEY", "")
     code, calls, printed = run(tmp_path, lambda r: httpx.Response(200, json=load_fixture(SNAPSHOT)), capsys)
     assert code == 1 and calls == [] and "DATAGOV_API_KEY is not set" in printed and list(tmp_path.iterdir()) == []
+
+
+def read_index(folder):
+    return json.loads((folder / "index.json").read_text(encoding="utf-8"))
+
+
+def test_index_matches_the_dated_files(tmp_path, capsys):
+    payload = load_fixture(SNAPSHOT)
+    run(tmp_path, lambda r: httpx.Response(200, json=payload), capsys)
+    dated = sorted(p.name for p in tmp_path.glob("????-??-??.json"))
+    assert dated == ["2026-11-01.json"]
+    assert read_index(tmp_path) == {"files": dated, "latest": dated[-1]}
+    assert snap.snapshot(httpx.MockTransport(lambda r: httpx.Response(200, json=payload)), tmp_path)["index"] == "unchanged"
+
+
+def test_index_is_added_for_a_folder_that_has_none(tmp_path, capsys):
+    payload = load_fixture(SNAPSHOT)
+    run(tmp_path, lambda r: httpx.Response(200, json=payload), capsys)
+    (tmp_path / "index.json").unlink()  # like the data branch before the index existed
+    r = snap.snapshot(httpx.MockTransport(lambda r: httpx.Response(200, json=payload)), tmp_path)
+    assert r["status"] == "unchanged" and r["index"] == "written"
+    assert read_index(tmp_path)["latest"] == "2026-11-01.json"
+
+
+def test_failed_fetch_writes_no_index(tmp_path, capsys):
+    run(tmp_path, lambda r: httpx.Response(502), capsys)
+    assert not (tmp_path / "index.json").exists()

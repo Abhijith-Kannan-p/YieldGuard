@@ -30,6 +30,13 @@ MANDI_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d00
 DATAGOV_API_KEY = os.getenv("DATAGOV_API_KEY", "").strip()
 # data.gov.in's gateway hangs and returns 502 for a generic client User-Agent; this one gets a quick 200.
 MANDI_HEADERS = {"User-Agent": "YieldGuard/1.0 (hackathon project)", "Accept": "*/*"}
+# Saved copies published from a home connection to the "data" branch (publish_mandi_snapshot.py),
+# used when the live call fails: data.gov.in refuses cloud IPs such as Render's.
+MANDI_SAVED_REPO = os.getenv("MANDI_SAVED_REPO", "Abhijith-Kannan-p/YieldGuard").strip()
+MANDI_SAVED_BRANCH = os.getenv("MANDI_SAVED_BRANCH", "data").strip()
+MANDI_SAVED_RAW_BASE = os.getenv("MANDI_SAVED_RAW_BASE", "https://raw.githubusercontent.com").rstrip("/")
+MANDI_SAVED_API_BASE = os.getenv("MANDI_SAVED_API_BASE", "https://api.github.com").rstrip("/")
+MANDI_SAVED_DIR = "data/mandi"
 
 # Fallbacks (see sources/metno.py and baseline.py)
 METNO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
@@ -113,6 +120,7 @@ TTL_BASELINE = 30 * 24 * 3600 # rebuild a district's baseline in the background 
 TTL_SOIL = 7 * 24 * 3600      # per coordinate pair (rounded to 2 decimals); older copies are still used on a 503
 TTL_TODAY = 60 * 60           # landing-page "Today in your field" summary, per location
 TTL_MANDI = 6 * 3600          # all Karnataka mandi prices (one snapshot a day)
+TTL_MANDI_SAVED = 60 * 60     # the data-branch copy (index + newest file)
 
 # Saved data, loaded at startup so a restart does not refetch it. On hosts with an ephemeral
 # disk (Render's free plan) the files last until the next deploy or restart.
@@ -191,6 +199,8 @@ MANDI_MAX_RECORDS = 5000          # stop paging after this many records
 MANDI_TIMEOUT_S = 30.0            # per request: data.gov.in can be slow
 MANDI_WAIT_S = 10.0               # a question waits at most this long; a slower fetch finishes in the background
 MANDI_RETRY_AFTER_S = 5 * 60      # after a failed fetch, no new attempt for this long
+MANDI_SAVED_RETRY_AFTER_S = 5 * 60  # same pause for the data-branch copy
+MANDI_SAVED_MAX_AGE_DAYS = float(os.getenv("MANDI_SAVED_MAX_AGE_DAYS", "7"))  # by newest arrival date; older is unavailable
 MANDI_MAX_DISTANCE_KM = 125.0     # markets farther than this are never used
 MANDI_MAX_GEOCODES = 12           # new market-name lookups per question (cached lookups are free)
 MANDI_MAX_VARIETIES = 3           # varieties of the crop shown for the chosen market

@@ -1,0 +1,18 @@
+[
+ {
+  "name": "2026-11-01.json",
+  "path": "data/mandi/2026-11-01.json",
+  "sha": "a560a4769b69a80e531bf7e229ba602ed35fe3dc",
+  "size": 8720,
+  "url": "https://api.github.com/repos/Abhijith-Kannan-p/YieldGuard/contents/data/mandi/2026-11-01.json?ref=data",
+  "html_url": "https://github.com/Abhijith-Kannan-p/YieldGuard/blob/data/data/mandi/2026-11-01.json",
+  "git_url": "https://api.github.com/repos/Abhijith-Kannan-p/YieldGuard/git/blobs/a560a4769b69a80e531bf7e229ba602ed35fe3dc",
+  "download_url": "https://raw.githubusercontent.com/Abhijith-Kannan-p/YieldGuard/data/data/mandi/2026-11-01.json",
+  "type": "file",
+  "_links": {
+   "self": "https://api.github.com/repos/Abhijith-Kannan-p/YieldGuard/contents/data/mandi/2026-11-01.json?ref=data",
+   "git": "https://api.github.com/repos/Abhijith-Kannan-p/YieldGuard/git/blobs/a560a4769b69a80e531bf7e229ba602ed35fe3dc",
+   "html": "https://github.com/Abhijith-Kannan-p/YieldGuard/blob/data/data/mandi/2026-11-01.json"
+  }
+ }
+]

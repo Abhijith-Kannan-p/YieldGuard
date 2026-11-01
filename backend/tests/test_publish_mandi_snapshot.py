@@ -1,5 +1,6 @@
 """devtools/publish_mandi_snapshot.py against throwaway git repositories in a temp folder (a bare "remote"
 and a clone standing in for the laptop's checkout). The fetch is served from the saved real snapshot."""
+import json
 import shutil
 import subprocess
 from functools import partial
@@ -59,7 +60,9 @@ def test_first_run_starts_the_orphan_data_branch_and_pushes(repos, capsys):
     printed = capsys.readouterr().out
     assert code == 0
     assert "written: 2026-11-01.json (newest arrival date 2026-11-01, 31 records), pushed" in printed
-    assert sh(remote, "ls-tree", "-r", "--name-only", "data") == "data/mandi/2026-11-01.json"
+    assert sh(remote, "ls-tree", "-r", "--name-only", "data").split() == ["data/mandi/2026-11-01.json", "data/mandi/index.json"]
+    index = json.loads(sh(remote, "show", "data:data/mandi/index.json"))
+    assert index == {"files": ["2026-11-01.json"], "latest": "2026-11-01.json"}
     assert sh(remote, "log", "--format=%an <%ae> | %s", "data") == (
         "YieldGuard snapshot (laptop) <yieldguard-snapshot@noreply.invalid> | Mandi snapshot: 2026-11-01.json")
     assert sh(remote, "rev-list", "--count", "data") == "1"
@@ -102,3 +105,16 @@ def test_rejected_push_fails_and_leaves_nothing_behind(repos, capsys):
     assert code == 1 and capsys.readouterr().err.strip().endswith("failed: git push failed")
     assert subprocess.run(["git", "rev-parse", "--verify", "data"], cwd=remote, capture_output=True).returncode != 0
     assert_untouched(repo, main_head)
+
+
+def test_existing_branch_without_an_index_gets_one(repos, capsys):
+    remote, repo, log = repos
+    pub.main(repo=repo, fetch=fetch_with(saved_snapshot), log_file=log)
+    work = remote.parent / "edit"  # remove the index on the remote, as on the branch before it existed
+    sh(remote.parent, "clone", "-q", "-b", "data", str(remote), str(work))
+    sh(work, "rm", "-q", "data/mandi/index.json")
+    sh(work, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "no index")
+    sh(work, "push", "-q", "origin", "data")
+    code = pub.main(repo=repo, fetch=fetch_with(saved_snapshot), log_file=log)
+    assert code == 0 and "unchanged: 2026-11-01.json" in capsys.readouterr().out.splitlines()[-1]
+    assert "index.json" in sh(remote, "ls-tree", "-r", "--name-only", "data")

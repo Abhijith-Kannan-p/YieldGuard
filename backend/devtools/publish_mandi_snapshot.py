@@ -80,7 +80,8 @@ def publish(repo: Path = REPO, remote: str = "origin", fetch=fetch_mandi_snapsho
         git(worktree, "-c", f"user.name={AUTHOR[0]}", "-c", f"user.email={AUTHOR[1]}", "-c", "commit.gpgsign=false",
             "commit", "-m", f"Mandi snapshot: {r['name']}")
         git(worktree, "push", remote, f"HEAD:refs/heads/{BRANCH}")
-        return f"{r['status']}: {what}, pushed"
+        extra = ", index updated" if r["status"] == "unchanged" and r.get("index") == "written" else ""
+        return f"{r['status']}: {what}{extra}, pushed"
     finally:
         if added:
             git(repo, "worktree", "remove", "--force", str(worktree), check=False)

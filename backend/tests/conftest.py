@@ -27,6 +27,7 @@ def _clear_cache(tmp_path, monkeypatch):
     mandi.clear()
     # Tests never use the real data.gov.in key from .env; mandi tests set their own.
     monkeypatch.setattr(config, "DATAGOV_API_KEY", "")
+    monkeypatch.setattr(config, "MANDI_SAVED_REPO", "")  # no test reaches GitHub; saved-copy tests set their own
     http._backoff_until.clear()
     # Fresh, file-backed stores per test; no background baseline builds unless a test asks for them.
     monkeypatch.setattr(baseline, "store", baseline.BaselineStore(tmp_path / "baselines.json", autostart=False))

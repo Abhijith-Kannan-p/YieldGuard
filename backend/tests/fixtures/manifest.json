@@ -36,5 +36,20 @@
   "captured_at": "2026-11-01T18:02:04+05:30",
   "source": "Agmarknet mandi prices (data.gov.in)",
   "query": "Open-Meteo Geocoding for market names in the snapshot: Closepet, Ramanagara, Ranebennur"
+ },
+ "github_mandi_contents.json": {
+  "captured_at": "2026-11-01T19:37:11+05:30",
+  "source": "GitHub (YieldGuard data branch)",
+  "query": "GET contents/data/mandi?ref=data"
+ },
+ "github_mandi_2026-11-01.json": {
+  "captured_at": "2026-11-01T19:37:12+05:30",
+  "source": "GitHub (YieldGuard data branch)",
+  "query": "raw data/mandi/2026-11-01.json"
+ },
+ "github_raw_404.txt": {
+  "captured_at": "2026-11-01T19:37:13+05:30",
+  "source": "GitHub (YieldGuard data branch)",
+  "query": "raw data/mandi/no-such-file.json (HTTP 404)"
  }
 }

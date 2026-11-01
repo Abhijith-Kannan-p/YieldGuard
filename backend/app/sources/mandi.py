@@ -6,6 +6,10 @@
 - data.gov.in can take a minute to answer. A question waits at most MANDI_WAIT_S; a slower fetch
   keeps running and fills the cache for the next question. After a failure no new attempt is made
   for MANDI_RETRY_AFTER_S (a saved snapshot is shown meanwhile, with its fetch time).
+- If the live call fails (or no key is set), a saved copy is used: the in-memory one, or the copy published
+  from a home connection to the "data" branch on GitHub (publish_mandi_snapshot.py), whichever was
+  fetched later. It is labelled "saved copy" with its own fetch time; one older than MANDI_SAVED_MAX_AGE_DAYS
+  (by newest arrival date) is not used.
 - Markets are located by geocoding their names (sources/geocode.py), at most MANDI_MAX_GEOCODES new
   lookups per question, remembered in memory. A market farther than MANDI_MAX_DISTANCE_KM is never used.
 """
@@ -18,7 +22,7 @@ from datetime import date, datetime
 from .. import config, crops
 from ..cache import cache
 from ..http import FetchError, SourceResult, cached_fetch, get_json
-from ..timeutil import now_local
+from ..timeutil import TZ, iso, now_local
 from . import geocode
 from .soil import distance_km
 
@@ -26,18 +30,21 @@ log = logging.getLogger(__name__)
 
 NAME = "Agmarknet mandi prices (data.gov.in)"
 CACHE_KEY = "mandi:karnataka"
+SAVED_KEY = "mandi:saved"
+DATED_FILE = re.compile(r"^\d{4}-\d{2}-\d{2}\.json$")
 UNIT = "Rs/quintal"
 MAX_PLAUSIBLE_PRICE = 1_000_000  # Rs per quintal; above this a row is treated as broken
 
 _clock = time.monotonic  # replaced in tests
 _retry_at = 0.0
+_saved_retry_at = 0.0
 _task: asyncio.Task | None = None
 _located: dict[str, dict | None] = {}  # "market|district" -> geocoded place, or None if not found
 
 
 def clear() -> None:
-    global _retry_at, _task
-    _retry_at, _task = 0.0, None
+    global _retry_at, _saved_retry_at, _task
+    _retry_at, _saved_retry_at, _task = 0.0, 0.0, None
     _located.clear()
 
 
@@ -117,8 +124,8 @@ async def _fetch_and_note() -> SourceResult:
     return res
 
 
-async def fetch() -> SourceResult:
-    """All Karnataka mandi records (latest day), cached TTL_MANDI. Never waits longer than MANDI_WAIT_S."""
+async def _live() -> SourceResult:
+    """The live call (cached TTL_MANDI), or the in-memory copy marked stale, or failed. Waits at most MANDI_WAIT_S."""
     global _task
     if not config.DATAGOV_API_KEY:
         return SourceResult("mandi", NAME, config.MANDI_URL, status="failed",
@@ -137,6 +144,100 @@ async def fetch() -> SourceResult:
     except TimeoutError:
         return _saved_or_failed(f"data.gov.in is slow to answer (over {config.MANDI_WAIT_S:.0f} s); "
                                 f"prices will be ready for a later question")
+
+
+def _raw_url(name: str) -> str:
+    return (f"{config.MANDI_SAVED_RAW_BASE}/{config.MANDI_SAVED_REPO}/{config.MANDI_SAVED_BRANCH}/"
+            f"{config.MANDI_SAVED_DIR}/{name}")
+
+
+async def _newest_saved_name() -> str:
+    """The newest dated file: from index.json, or from the GitHub contents API if the index is missing."""
+    try:
+        index = await get_json(_raw_url("index.json"), None)
+        names = index.get("files") if isinstance(index, dict) else None
+    except FetchError as e:
+        if e.status != 404:
+            raise
+        listing = await get_json(f"{config.MANDI_SAVED_API_BASE}/repos/{config.MANDI_SAVED_REPO}/contents/"
+                                 f"{config.MANDI_SAVED_DIR}", {"ref": config.MANDI_SAVED_BRANCH})
+        names = [x.get("name") for x in listing if isinstance(x, dict)] if isinstance(listing, list) else None
+    dated = sorted(n for n in names or [] if isinstance(n, str) and DATED_FILE.match(n))
+    if not dated:
+        raise FetchError("the data branch has no saved snapshot")
+    return dated[-1]
+
+
+async def _load_saved() -> dict:
+    """The newest saved snapshot, parsed like a live one. Empty or invalid files are refused, never used."""
+    name = await _newest_saved_name()
+    doc = await get_json(_raw_url(name), None)
+    if not isinstance(doc, dict) or not isinstance(doc.get("records"), list):
+        raise FetchError(f"saved snapshot {name} is not valid")
+    data = parse(doc["records"], 0)
+    if not data["records"]:
+        raise FetchError(f"saved snapshot {name} has no usable records")
+    try:
+        fetched_at = datetime.fromisoformat(str(doc.get("fetched_at"))).astimezone(TZ)
+        data["total"] = int(doc.get("total") or 0)
+    except (TypeError, ValueError):
+        raise FetchError(f"saved snapshot {name} is not valid") from None
+    return {"data": data, "fetched_at": iso(fetched_at), "file": name}
+
+
+async def saved_copy() -> SourceResult:
+    """The data-branch copy, cached TTL_MANDI_SAVED; after a failure no new attempt for MANDI_SAVED_RETRY_AFTER_S."""
+    global _saved_retry_at
+    if not config.MANDI_SAVED_REPO:
+        return SourceResult("mandi", NAME, "", status="failed", error="no saved-copy repository is configured")
+    wait = _saved_retry_at - _clock()
+    if wait > 0 and cache.get(SAVED_KEY) is None:
+        return SourceResult("mandi", NAME, "", status="failed", error=f"failed recently; next attempt in {wait:.0f} s")
+    res = await cached_fetch("mandi", NAME, _raw_url("index.json"), SAVED_KEY, config.TTL_MANDI_SAVED, _load_saved)
+    if not res.ok:
+        _saved_retry_at = _clock() + config.MANDI_SAVED_RETRY_AFTER_S
+    return res
+
+
+def _too_old(data: dict, today: date) -> str | None:
+    """Why a copy is too old to show, by its newest arrival date, or None."""
+    newest = data.get("snapshot_date")
+    if newest and (today - date.fromisoformat(newest)).days > config.MANDI_SAVED_MAX_AGE_DAYS:
+        return f"latest arrival date {newest} is more than {config.MANDI_SAVED_MAX_AGE_DAYS:g} days old"
+    return None
+
+
+def _when(dt: datetime) -> str:
+    return dt.astimezone(TZ).strftime("%d %b %Y, %H:%M IST").lstrip("0")
+
+
+async def fetch() -> SourceResult:
+    """Live first. Otherwise the newer of the in-memory copy and the data-branch copy (a tie keeps the in-memory one),
+    labelled "saved copy" with its own fetch time and a note naming the live failure. Else failed with both causes."""
+    live = await _live()
+    if live.ok and not live.stale:
+        return live
+    cause = live.error if live.error.startswith("data.gov.in") else f"data.gov.in failed ({live.error})"
+    today = now_local().date()
+    candidates = []
+    if live.ok and not _too_old(live.data, today):
+        candidates.append(("memory", live.fetched_at, live.data, config.MANDI_URL))
+    saved = await saved_copy()
+    saved_why = saved.error
+    if saved.ok:
+        when = datetime.fromisoformat(saved.data["fetched_at"])
+        saved_why = _too_old(saved.data["data"], today)
+        if saved_why is None:
+            candidates.append(("data branch", when, saved.data["data"], _raw_url(saved.data["file"])))
+    if not candidates:
+        memory_why = f"; in-memory copy: {_too_old(live.data, today)}" if live.ok else ""
+        return SourceResult("mandi", NAME, config.MANDI_URL, status="failed",
+                            error=f"{cause}; saved copy unavailable ({saved_why}){memory_why}")
+    where, when, data, url = max(candidates, key=lambda c: c[1])  # max keeps the first (in-memory) on a tie
+    label = "the YieldGuard data branch" if where == "data branch" else "this server's memory"
+    return SourceResult("mandi", f"{NAME}, saved copy from {label}", url, data=data, fetched_at=when, cached=True,
+                        stale=True, error=f"{cause}; showing the copy fetched {_when(when)} from {label}",
+                        meta={"saved_copy": where})
 
 
 def market_query(market: str) -> str:
