@@ -322,6 +322,11 @@ export function SourcesTable({ res, L }: { res: AdviceResponse; L: Labels }) {
           </tbody>
         </table>
       </div>
+      {res.forecast_path && L.forecastPath[res.forecast_path] && (
+        <p data-forecast-path={res.forecast_path} className="mt-2 text-sm font-semibold">
+          {L.forecastPath[res.forecast_path]}
+        </p>
+      )}
       <p className="mt-2 text-sm text-muted-foreground">
         Open-Meteo.com (CC BY 4.0) · ISRIC SoilGrids v2.0 (CC BY 4.0) · MET Norway (CC BY 4.0, used only as a fallback) ·
         NASA POWER (used only if the archive baseline is unavailable)

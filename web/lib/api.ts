@@ -1,3 +1,4 @@
+import type { BrowserForecast } from "./forecastClient";
 import type { AdviceResponse, FollowupResponse, PlaceSuggestion, TodaySummary } from "./types";
 
 // In production the page is served by the FastAPI backend, so API calls are same-origin.
@@ -40,8 +41,21 @@ async function getJson<T>(path: string, signal: AbortSignal, init: RequestInit =
   return body as T;
 }
 
-export function fetchAdvice(params: URLSearchParams, signal: AbortSignal): Promise<AdviceResponse> {
-  return getJson<AdviceResponse>(`/api/advice?${params}`, signal);
+export interface AdviceRequest {
+  question: string;
+  location: string;
+  lat?: number;
+  lon?: number;
+  lang: string;
+  forecast: BrowserForecast; // fetched in the browser first (lib/forecastClient.ts)
+}
+
+export function postAdvice(body: AdviceRequest, signal: AbortSignal): Promise<AdviceResponse> {
+  return getJson<AdviceResponse>("/api/advice", signal, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 /** Landing card and saved-field status. The server caches each location for one hour. */

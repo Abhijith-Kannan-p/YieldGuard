@@ -49,6 +49,22 @@ FORECAST_DAILY_VARS = [            # daily data: month-to-date rain, irrigation 
 ]
 FORECAST_DAILY_DAYS = 7            # daily forecast days (today + 6) for the irrigation planner and heat alert
 
+# Forecast fetched in the visitor's browser and posted with the question (sources/browser_forecast.py).
+# The server checks it before any rule uses it.
+BROWSER_FORECAST_MAX_AGE_S = 15 * 60     # the browser keeps its copy 10 min; allow a little clock skew
+BROWSER_FORECAST_MAX_AHEAD_S = 5 * 60    # a fetch time further in the future than this is rejected
+BROWSER_FORECAST_MAX_GRID_OFFSET_DEG = 0.2  # Open-Meteo's grid point must be this close to the place
+BROWSER_FORECAST_PLAUSIBLE = {           # (min, max) for every value; None (missing) is allowed
+    "temperature_2m": (-20.0, 60.0),
+    "temperature_2m_max": (-20.0, 60.0),
+    "wind_speed_10m": (0.0, 300.0),
+    "precipitation_probability": (0.0, 100.0),
+    "relative_humidity_2m": (0.0, 100.0),
+    "precipitation": (0.0, 500.0),
+    "precipitation_sum": (0.0, 2000.0),
+    "et0_fao_evapotranspiration": (0.0, 30.0),
+}
+
 SOIL_PROPERTIES = ["clay", "sand", "phh2o", "soc"]
 SOIL_DEPTH = "0-5cm"
 SOIL_VALUE = "mean"

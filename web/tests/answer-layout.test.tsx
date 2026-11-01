@@ -36,6 +36,15 @@ describe("answer layout", () => {
     expect(html).toContain(L.statusUnavailable); // SoilGrids failed when this response was saved
   });
 
+  it("names the browser fetch in the sources table and says which forecast path was used", () => {
+    const fc = { ...res.sources.find((s) => s.id === "forecast")!, name: "Open-Meteo (fetched in your browser)" };
+    const html = render({ ...res, forecast_path: "browser", sources: res.sources.map((s) => (s.id === "forecast" ? fc : s)) });
+    expect(html).toContain("Open-Meteo (fetched in your browser)");
+    expect(html).toContain('data-forecast-path="browser"');
+    expect(html).toContain(L.forecastPath.browser);
+    expect(render({ ...res, forecast_path: "metno" })).toContain(L.forecastPath.metno);
+  });
+
   it("labels every fourth hour of the strip", () => {
     const html = render(res);
     const first = res.forecast_hourly!.hours;

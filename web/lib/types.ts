@@ -95,6 +95,9 @@ export interface AdviceResponse {
     hours: ForecastHour[];
   } | null;
   sources: SourceView[];
+  // How the forecast arrived: fetched in the visitor's browser, MET Norway on the server after the browser
+  // fetch failed, the server's own Open-Meteo call (GET /api/advice), or none.
+  forecast_path?: "browser" | "metno" | "server" | "unavailable";
   warnings: string[];
   forecast_daily?: { source: string; fetched_at: string; units: Record<string, string>; days: DailyRow[] } | null;
   water_balance?: WaterBalance | null;

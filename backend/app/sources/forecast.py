@@ -53,12 +53,24 @@ def parse_hourly(payload: dict, from_date: str | None = None) -> dict:
     }
 
 
+def parse_payload(payload: dict, past_from: date, today: date) -> dict:
+    """A whole forecast response -> hours, units, daily ({date: rain mm}), days (daily rows from today),
+    daily_units, past_from. Shared by the server fetch below and the browser-fetched forecast."""
+    data = parse_hourly(payload, from_date=today.isoformat())
+    data["daily"] = parse_daily(payload)
+    data["days"] = [d for d in parse_daily_vars(payload) if d["date"] >= today.isoformat()]
+    data["daily_units"] = payload.get("daily_units", {})
+    data["past_from"] = past_from.isoformat()
+    return data
+
+
 async def fetch(lat: float, lon: float, past_from: date, today: date) -> SourceResult:
     """Hourly forecast from now, plus daily data from `past_from` (the rainfall-deficit window start)
-    to FORECAST_DAILY_DAYS days ahead.
+    to FORECAST_DAILY_DAYS days ahead. Cached per location for TTL_FORECAST.
 
-    Result data: hours, units, daily ({date: rain mm}), days (list of daily rows from today),
-    daily_units, past_from. Cached per location for TTL_FORECAST.
+    The advice page sends a forecast fetched in the visitor's browser instead (sources/browser_forecast.py);
+    this server call is used by GET /api/advice and the "Today in your field" card.
+    The browser sends the same request: keep web/lib/forecastClient.ts in step with these parameters.
     """
     past_days = max(0, (today - past_from).days)
     params = {
@@ -74,13 +86,7 @@ async def fetch(lat: float, lon: float, past_from: date, today: date) -> SourceR
     }
 
     async def load():
-        payload = await get_json(config.FORECAST_URL, params)
-        data = parse_hourly(payload, from_date=today.isoformat())
-        data["daily"] = parse_daily(payload)
-        data["days"] = [d for d in parse_daily_vars(payload) if d["date"] >= today.isoformat()]
-        data["daily_units"] = payload.get("daily_units", {})
-        data["past_from"] = past_from.isoformat()
-        return data
+        return parse_payload(await get_json(config.FORECAST_URL, params), past_from, today)
 
     async def metno_fallback(err: FetchError) -> SourceResult | None:
         """Only when Open-Meteo is rate-limited (429) or erroring (5xx); otherwise stored data is used."""

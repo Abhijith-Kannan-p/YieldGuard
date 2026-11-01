@@ -12,6 +12,7 @@ from .. import config
 from ..http import SourceResult
 
 MTD_NAME = "Open-Meteo Forecast API (recent daily precipitation)"
+MTD_BROWSER_NAME = "Open-Meteo (fetched in your browser, recent daily precipitation)"
 BASELINE_NAME = "Open-Meteo Historical Weather (Archive) API"
 
 
@@ -33,5 +34,6 @@ def month_to_date(fc: SourceResult) -> SourceResult:
         return SourceResult("rain_mtd", MTD_NAME, fc.url, status="failed",
                             error="the MET Norway fallback has no past rainfall, so month-to-date rain is unavailable")
     data = {"daily": fc.data.get("daily", {})} if fc.ok else None
-    return SourceResult("rain_mtd", MTD_NAME, fc.url, status=fc.status, data=data, fetched_at=fc.fetched_at,
+    name = MTD_BROWSER_NAME if fc.meta.get("fetched_in") == "browser" else MTD_NAME
+    return SourceResult("rain_mtd", name, fc.url, status=fc.status, data=data, fetched_at=fc.fetched_at,
                         cached=fc.cached, stale=fc.stale, error=fc.error, meta={"same_request_as": "forecast"})

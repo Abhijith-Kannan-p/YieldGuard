@@ -77,6 +77,35 @@ async def get_advice(
     return result
 
 
+class BrowserForecastIn(BaseModel):
+    """What the page's forecast fetch returned (web/lib/forecastClient.ts). Checked in sources/browser_forecast.py."""
+    ok: bool
+    data: dict | None = None          # the Open-Meteo response, when ok
+    fetched_at: str | None = None     # when the browser fetched it (ISO 8601 with time zone)
+    cached: bool = False              # served from the browser's 10-minute copy
+    status: int | None = None         # HTTP status of a failed fetch (e.g. 429)
+    error: str | None = Field(None, max_length=300)
+
+
+class AdviceIn(BaseModel):
+    question: str = Field(..., max_length=2000)
+    location: str | None = Field(None, max_length=200)
+    lat: float | None = Field(None, ge=-90, le=90)
+    lon: float | None = Field(None, ge=-180, le=180)
+    lang: str | None = "auto"
+    forecast: BrowserForecastIn
+
+
+@app.post("/api/advice")
+async def post_advice(body: AdviceIn, request: Request, response: Response):
+    """The advice page's request: the question plus the forecast fetched in the visitor's browser, so the
+    server makes no Open-Meteo forecast call. If that fetch failed, MET Norway is used instead."""
+    result = await advise(body.question, location=body.location, lat=body.lat, lon=body.lon, lang=body.lang,
+                          client_forecast=body.forecast.model_dump())
+    _remember_answer(request, response, result)
+    return result
+
+
 class FollowupIn(BaseModel):
     question: str = Field(..., max_length=2000)
     lang: str | None = "auto"

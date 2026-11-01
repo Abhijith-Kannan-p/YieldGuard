@@ -14,7 +14,7 @@ from .rules import heavy_rain as heavy_rule
 from .rules import irrigation as irrigation_rule
 from .rules import soil as soil_rule
 from .rules import spray as spray_rule
-from .sources import forecast, geocode, rainfall, soil
+from .sources import browser_forecast, forecast, geocode, rainfall, soil
 from .timeutil import iso, now_local, parse_local
 
 log = logging.getLogger(__name__)
@@ -70,8 +70,29 @@ def _clean_items(items, known_ids: set[str]) -> list[dict]:
     return out
 
 
+async def _forecast(browser: dict | None, place: dict, past_from, now) -> SourceResult:
+    """The browser's forecast (POST /api/advice) when one was sent, else the server's own Open-Meteo call."""
+    if browser is None:
+        return await forecast.fetch(place["lat"], place["lon"], past_from=past_from, today=now.date())
+    try:
+        return await browser_forecast.resolve(browser, place["lat"], place["lon"], past_from, now.date(), now)
+    except browser_forecast.InvalidForecast as e:
+        raise AdviceError("invalid_forecast", f"The forecast sent by your browser was rejected: {e}.", 422) from None
+
+
+def forecast_path(fc: SourceResult) -> str:
+    """Which way the forecast arrived, shown on the page: browser | metno | server | unavailable."""
+    if not fc.ok:
+        return "unavailable"
+    if fc.meta.get("fallback_for"):
+        return "metno"
+    return "browser" if fc.meta.get("fetched_in") == "browser" else "server"
+
+
 async def advise(question: str, location: str | None = None, lat: float | None = None,
-                 lon: float | None = None, lang: str | None = None) -> dict:
+                 lon: float | None = None, lang: str | None = None, client_forecast: dict | None = None) -> dict:
+    """`client_forecast`: the forecast the page fetched in the visitor's browser ({"ok": true, "data", "fetched_at",
+    "cached"} or {"ok": false, "status", "error"}). With it the server makes no Open-Meteo forecast call."""
     t0 = time.monotonic()
     question = (question or "").strip()
     if not question:
@@ -88,8 +109,9 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     y0, y1 = rainfall.baseline_years(now.date())
     # One forecast request also returns this month's past daily rain (past_days).
     # The long-run baseline is read from the stored per-district file, never fetched here.
+    # The page sends a forecast fetched in the visitor's browser; without one the server fetches it.
     fc, base, soil_src = await asyncio.gather(
-        forecast.fetch(place["lat"], place["lon"], past_from=win_start, today=now.date()),
+        _forecast(client_forecast, place, win_start, now),
         baseline.store.get(place, now.date()),
         soil.fetch(place["lat"], place["lon"]),
     )
@@ -166,6 +188,7 @@ async def advise(question: str, location: str | None = None, lat: float | None =
         "data_points": ev.points,
         "rules": ev.rules,
         "spray_windows": (results["spray"] or {}).get("windows", []),
+        "forecast_path": forecast_path(fc),
         "forecast_hourly": _series(fc, now),
         "forecast_daily": _daily(fc),
         "water_balance": results["irrigation"],
