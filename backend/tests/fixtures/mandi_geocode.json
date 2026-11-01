@@ -1,0 +1,71 @@
+{
+ "records": [],
+ "total": 2,
+ "by_query": {
+  "Ramanagara": {
+   "results": [
+    {
+     "id": 10769511,
+     "name": "Rāmanagaram",
+     "latitude": 17.00474,
+     "longitude": 80.7108,
+     "elevation": 119.0,
+     "feature_code": "PPL",
+     "country_code": "IN",
+     "admin1_id": 1278629,
+     "admin2_id": 12680255,
+     "admin3_id": 12686941,
+     "timezone": "Asia/Kolkata",
+     "country_id": 1269750,
+     "country": "India",
+     "admin1": "Andhra Pradesh",
+     "admin2": "NTR",
+     "admin3": "Vissannapet"
+    },
+    {
+     "id": 10786495,
+     "name": "Rāmanagaram",
+     "latitude": 18.78168,
+     "longitude": 83.93034,
+     "elevation": 54.0,
+     "feature_code": "PPL",
+     "country_code": "IN",
+     "admin1_id": 1278629,
+     "admin2_id": 1255649,
+     "admin3_id": 12684193,
+     "timezone": "Asia/Kolkata",
+     "country_id": 1269750,
+     "country": "India",
+     "admin1": "Andhra Pradesh",
+     "admin2": "Srikakulam district",
+     "admin3": "Kothuru"
+    }
+   ],
+   "generationtime_ms": 0.23436546
+  },
+  "Ranebennur": {
+   "results": [
+    {
+     "id": 1258474,
+     "name": "Ranebennur",
+     "latitude": 14.62239,
+     "longitude": 75.62951,
+     "elevation": 579.0,
+     "feature_code": "PPL",
+     "country_code": "IN",
+     "admin1_id": 1267701,
+     "admin2_id": 7909842,
+     "admin3_id": 9166494,
+     "timezone": "Asia/Kolkata",
+     "population": 106406,
+     "country_id": 1269750,
+     "country": "India",
+     "admin1": "Karnataka",
+     "admin2": "Haveri",
+     "admin3": "Ranibennur"
+    }
+   ],
+   "generationtime_ms": 0.20587444
+  }
+ }
+}

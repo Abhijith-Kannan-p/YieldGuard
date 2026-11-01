@@ -21,5 +21,20 @@
   "captured_at": "2026-10-31T18:13:29+05:30",
   "source": "Open-Meteo Forecast API",
   "query": "lat=15.46005 lon=75.00778 hourly 5 vars forecast_hours=72 past_hours=0; daily precipitation_sum, et0_fao_evapotranspiration, temperature_2m_max forecast_days=7 past_days=30"
+ },
+ "mandi_karnataka_2026-11-01.json": {
+  "captured_at": "2026-11-01T17:24:53+05:30",
+  "source": "Agmarknet mandi prices (data.gov.in)",
+  "query": "filters[state.keyword]=Karnataka limit=1000"
+ },
+ "mandi_empty.json": {
+  "captured_at": "2026-11-01T17:24:54+05:30",
+  "source": "Agmarknet mandi prices (data.gov.in)",
+  "query": "filters[state.keyword]=Karnataka filters[commodity]=No Such Commodity"
+ },
+ "mandi_geocode.json": {
+  "captured_at": "2026-11-01T17:24:57+05:30",
+  "source": "Agmarknet mandi prices (data.gov.in)",
+  "query": "Open-Meteo Geocoding for 2 market names in the snapshot"
  }
 }

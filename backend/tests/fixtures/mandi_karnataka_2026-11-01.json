@@ -1,0 +1,494 @@
+{
+ "created": 1627939168,
+ "updated": 1793530862,
+ "created_date": "2021-08-02T21:19:28Z",
+ "updated_date": "2026-11-01T11:01:02Z",
+ "active": "1",
+ "index_name": "9ef84268-d588-465a-a308-a864a43d0070",
+ "org": [
+  "Ministry of Agriculture and Farmers Welfare",
+  "Department of Agriculture and Farmers Welfare"
+ ],
+ "org_type": "Central",
+ "source": "data.gov.in",
+ "title": "Current Daily Price of Various Commodities from Various Markets (Mandi)",
+ "external_ws_url": "",
+ "visualizable": "1",
+ "field": [
+  {
+   "name": "State",
+   "id": "state",
+   "type": "keyword"
+  },
+  {
+   "name": "District",
+   "id": "district",
+   "type": "keyword"
+  },
+  {
+   "name": "Market",
+   "id": "market",
+   "type": "keyword"
+  },
+  {
+   "name": "Commodity",
+   "id": "commodity",
+   "type": "keyword"
+  },
+  {
+   "name": "Variety",
+   "id": "variety",
+   "type": "keyword"
+  },
+  {
+   "name": "Grade",
+   "id": "grade",
+   "type": "keyword"
+  },
+  {
+   "name": "Arrival_Date",
+   "id": "arrival_date",
+   "type": "date"
+  },
+  {
+   "name": "Min_x0020_Price",
+   "id": "min_price",
+   "type": "double"
+  },
+  {
+   "name": "Max_x0020_Price",
+   "id": "max_price",
+   "type": "double"
+  },
+  {
+   "name": "Modal_x0020_Price",
+   "id": "modal_price",
+   "type": "double"
+  }
+ ],
+ "external_ws": 0,
+ "catalog_uuid": "6141ea17-a69d-4713-b600-0a43c8fd9a6c",
+ "sector": [
+  "Agriculture",
+  "Agricultural Marketing"
+ ],
+ "target_bucket": {
+  "field": "9ef84268-d588-465a-a308-a864a43d0070",
+  "index": "daily_mandi_price",
+  "type": "6141ea17-a69d-4713-b600-0a43c8fd9a6c"
+ },
+ "desc": "Current Daily Price of Various Commodities from Various Markets (Mandi)",
+ "field_exposed": [
+  {
+   "name": "State",
+   "id": "state.keyword",
+   "type": "keyword"
+  },
+  {
+   "name": "District",
+   "id": "district",
+   "type": "keyword"
+  },
+  {
+   "name": "Market",
+   "id": "market",
+   "type": "keyword"
+  },
+  {
+   "name": "Commodity",
+   "id": "commodity",
+   "type": "keyword"
+  },
+  {
+   "name": "Variety",
+   "id": "variety",
+   "type": "keyword"
+  },
+  {
+   "name": "Grade",
+   "id": "grade",
+   "type": "keyword"
+  }
+ ],
+ "message": "Resource lists",
+ "version": "2.2.0",
+ "status": "ok",
+ "total": 31,
+ "count": 31,
+ "limit": "1000",
+ "offset": "0",
+ "records": [
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Snakeguard",
+   "variety": "Snakeguard",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 4000,
+   "max_price": 5500,
+   "modal_price": 5000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Chilly Capsicum",
+   "variety": "Chilly Capsicum",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 4000,
+   "max_price": 6000,
+   "modal_price": 5500
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Beans",
+   "variety": "Beans (Whole)",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 8000,
+   "max_price": 12000,
+   "modal_price": 10000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Haveri",
+   "market": "Ranebennur APMC",
+   "commodity": "Jowar(Sorghum)",
+   "variety": "Jowar ( White)",
+   "grade": "FAQ",
+   "arrival_date": "01/11/2026",
+   "min_price": 2527,
+   "max_price": 6800,
+   "modal_price": 3595
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Ginger(Green)",
+   "variety": "Green Ginger",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 5600,
+   "max_price": 10000,
+   "modal_price": 8000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Carrot",
+   "variety": "Carrot",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3000,
+   "max_price": 4500,
+   "modal_price": 4000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Green Chilli",
+   "variety": "Green Chilly",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 4000,
+   "max_price": 6000,
+   "modal_price": 5000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Thogrikai",
+   "variety": "Thogarikai",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 7500,
+   "max_price": 8000,
+   "modal_price": 7800
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Beetroot",
+   "variety": "Beetroot",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3000,
+   "max_price": 4000,
+   "modal_price": 3600
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Capsicum",
+   "variety": "Capsicum",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 4000,
+   "max_price": 6000,
+   "modal_price": 5200
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Knool Khol",
+   "variety": "Knool Khol",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 6000,
+   "max_price": 7500,
+   "modal_price": 7000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Cauliflower",
+   "variety": "Cauliflower",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3000,
+   "max_price": 4000,
+   "modal_price": 3500
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Brinjal",
+   "variety": "Brinjal",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3000,
+   "max_price": 5000,
+   "modal_price": 4000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Haveri",
+   "market": "Ranebennur APMC",
+   "commodity": "Ground Nut Seed",
+   "variety": "Ground Nut Seed",
+   "grade": "Medium",
+   "arrival_date": "01/11/2026",
+   "min_price": 12000,
+   "max_price": 12000,
+   "modal_price": 12000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Haveri",
+   "market": "Ranebennur APMC",
+   "commodity": "Paddy(Common)",
+   "variety": "Paddy",
+   "grade": "FAQ",
+   "arrival_date": "01/11/2026",
+   "min_price": 5080,
+   "max_price": 5080,
+   "modal_price": 5080
+  },
+  {
+   "state": "Karnataka",
+   "district": "Haveri",
+   "market": "Ranebennur APMC",
+   "commodity": "Ragi(Finger Millet)",
+   "variety": "Local",
+   "grade": "FAQ",
+   "arrival_date": "01/11/2026",
+   "min_price": 3450,
+   "max_price": 3450,
+   "modal_price": 3450
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Cucumbar(Kheera)",
+   "variety": "Cucumbar",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 2000,
+   "max_price": 2600,
+   "modal_price": 2400
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Seemebadnekai",
+   "variety": "Seemebadanekai",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 2400,
+   "max_price": 3200,
+   "modal_price": 3000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Brinjal",
+   "variety": "Round",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3000,
+   "max_price": 4000,
+   "modal_price": 3600
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Tomato",
+   "variety": "Tomato",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3000,
+   "max_price": 4000,
+   "modal_price": 3500
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Bottle gourd",
+   "variety": "Bottle Gourd",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 1200,
+   "max_price": 1600,
+   "modal_price": 1400
+  },
+  {
+   "state": "Karnataka",
+   "district": "Haveri",
+   "market": "Ranebennur APMC",
+   "commodity": "Onion",
+   "variety": "Local",
+   "grade": "Medium",
+   "arrival_date": "01/11/2026",
+   "min_price": 1000,
+   "max_price": 1000,
+   "modal_price": 1000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Haveri",
+   "market": "Ranebennur APMC",
+   "commodity": "Maize",
+   "variety": "Local",
+   "grade": "FAQ",
+   "arrival_date": "01/11/2026",
+   "min_price": 2910,
+   "max_price": 3540,
+   "modal_price": 3202
+  },
+  {
+   "state": "Karnataka",
+   "district": "Haveri",
+   "market": "Ranebennur APMC",
+   "commodity": "Bengal Gram(Gram)(Whole)",
+   "variety": "Jawari/Local",
+   "grade": "FAQ",
+   "arrival_date": "01/11/2026",
+   "min_price": 7600,
+   "max_price": 7600,
+   "modal_price": 7600
+  },
+  {
+   "state": "Karnataka",
+   "district": "Haveri",
+   "market": "Ranebennur APMC",
+   "commodity": "Soyabean",
+   "variety": "Soyabeen",
+   "grade": "FAQ",
+   "arrival_date": "01/11/2026",
+   "min_price": 6700,
+   "max_price": 6700,
+   "modal_price": 6700
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Cabbage",
+   "variety": "Cabbage",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 1200,
+   "max_price": 1600,
+   "modal_price": 1400
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Ladies Finger",
+   "variety": "Ladies Finger",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3000,
+   "max_price": 5000,
+   "modal_price": 4000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Ridgeguard(Tori)",
+   "variety": "Ridgeguard(Tori)",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3000,
+   "max_price": 5000,
+   "modal_price": 4000
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Raddish",
+   "variety": "Raddish",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3500,
+   "max_price": 5000,
+   "modal_price": 4400
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Bitter gourd",
+   "variety": "Bitter Gourd",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 3500,
+   "max_price": 5000,
+   "modal_price": 4400
+  },
+  {
+   "state": "Karnataka",
+   "district": "Bengaluru South",
+   "market": "Ramanagara APMC",
+   "commodity": "Drumstick",
+   "variety": "Drumstick",
+   "grade": "Local",
+   "arrival_date": "01/11/2026",
+   "min_price": 12000,
+   "max_price": 15000,
+   "modal_price": 13600
+  }
+ ]
+}
