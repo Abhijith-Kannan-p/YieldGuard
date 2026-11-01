@@ -126,8 +126,9 @@ _advise = advisor.advise
 
 async def _advise_labelled(*args, **kwargs):
     # The clock is frozen at capture time, so a forecast the browser fetched live would fail the
-    # freshness check: use the saved forecast instead.
+    # freshness checks: use the saved forecast and rain instead.
     kwargs.pop("client_forecast", None)
+    kwargs.pop("client_past_rain", None)
     res = await _advise(*args, **kwargs)
     res["fixture_mode"] = True
     res["warnings"].insert(0, f"FIXTURE MODE: saved test responses captured {CAPTURED_AT.isoformat()}, not live data.")

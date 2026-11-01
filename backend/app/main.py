@@ -94,14 +94,16 @@ class AdviceIn(BaseModel):
     lon: float | None = Field(None, ge=-180, le=180)
     lang: str | None = "auto"
     forecast: BrowserForecastIn
+    past_rain: BrowserForecastIn | None = None  # daily rain over the deficit window, fetched once a day
 
 
 @app.post("/api/advice")
 async def post_advice(body: AdviceIn, request: Request, response: Response):
-    """The advice page's request: the question plus the forecast fetched in the visitor's browser, so the
-    server makes no Open-Meteo forecast call. If that fetch failed, MET Norway is used instead."""
+    """The advice page's request: the question plus the forecast and past rain fetched in the visitor's browser,
+    so the server makes no Open-Meteo call. If the forecast fetch failed, MET Norway is used instead."""
     result = await advise(body.question, location=body.location, lat=body.lat, lon=body.lon, lang=body.lang,
-                          client_forecast=body.forecast.model_dump())
+                          client_forecast=body.forecast.model_dump(),
+                          client_past_rain=body.past_rain.model_dump() if body.past_rain else None)
     _remember_answer(request, response, result)
     return result
 

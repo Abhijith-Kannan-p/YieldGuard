@@ -80,6 +80,14 @@ async def _forecast(browser: dict | None, place: dict, past_from, now) -> Source
         raise AdviceError("invalid_forecast", f"The forecast sent by your browser was rejected: {e}.", 422) from None
 
 
+def _past_rain(posted: dict, place: dict, start, end, now) -> SourceResult:
+    """Month-to-date rain from the browser's once-a-day past-rain request."""
+    try:
+        return browser_forecast.past_rain(posted, place["lat"], place["lon"], start, end, now)
+    except browser_forecast.InvalidForecast as e:
+        raise AdviceError("invalid_past_rain", f"The past rain sent by your browser was rejected: {e}.", 422) from None
+
+
 def forecast_path(fc: SourceResult) -> str:
     """Which way the forecast arrived, shown on the page: browser | metno | server | unavailable."""
     if not fc.ok:
@@ -90,9 +98,12 @@ def forecast_path(fc: SourceResult) -> str:
 
 
 async def advise(question: str, location: str | None = None, lat: float | None = None,
-                 lon: float | None = None, lang: str | None = None, client_forecast: dict | None = None) -> dict:
+                 lon: float | None = None, lang: str | None = None, client_forecast: dict | None = None,
+                 client_past_rain: dict | None = None) -> dict:
     """`client_forecast`: the forecast the page fetched in the visitor's browser ({"ok": true, "data", "fetched_at",
-    "cached"} or {"ok": false, "status", "error"}). With it the server makes no Open-Meteo forecast call."""
+    "cached"} or {"ok": false, "status", "error"}). With it the server makes no Open-Meteo forecast call.
+    `client_past_rain`: the same shape, for the browser's daily rain over the deficit window (month-to-date rain).
+    Without it, month-to-date rain is read from the forecast's past days (pages from before the split)."""
     t0 = time.monotonic()
     question = (question or "").strip()
     if not question:
@@ -107,15 +118,18 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     # --- fetch all live data in parallel ------------------------------------
     win_start, win_end = deficit_rule.window(now.date())
     y0, y1 = rainfall.baseline_years(now.date())
-    # One forecast request also returns this month's past daily rain (past_days).
-    # The long-run baseline is read from the stored per-district file, never fetched here.
+    # Month-to-date rain comes from the browser's past-rain request when the page sent one, else from the
+    # forecast's past days (server fetch). The long-run baseline is read from the stored per-district file.
+    # The browser's past rain is checked before anything is fetched, so a rejected request costs no API call.
+    browser_mtd = (_past_rain(client_past_rain, place, win_start, win_end, now)
+                   if client_forecast is not None and client_past_rain is not None else None)
     # The page sends a forecast fetched in the visitor's browser; without one the server fetches it.
     fc, base, soil_src = await asyncio.gather(
         _forecast(client_forecast, place, win_start, now),
         baseline.store.get(place, now.date()),
         soil.fetch(place["lat"], place["lon"]),
     )
-    mtd = rainfall.month_to_date(fc)
+    mtd = browser_mtd if browser_mtd is not None else rainfall.month_to_date(fc)
     # Average over the years actually stored (a stored baseline can lag a year until it is rebuilt).
     base_years = (base.data["start_year"], base.data["end_year"]) if base.ok else (y0, y1)
     sources = [geo, fc, mtd, base, soil_src]

@@ -164,3 +164,65 @@ def test_get_advice_still_uses_the_server_fetch(world, monkeypatch):
     monkeypatch.setattr(advisor.forecast, "fetch", fc)
     body = client.get("/api/advice", params={"q": "Can I spray?", "location": "Dharwad"}).json()
     assert seen and body["forecast_path"] == "unavailable"
+
+
+# --- past rain: a separate request, once per place per day ----------------------------------------
+
+def light() -> dict:
+    """The forecast as the page now asks for it: no past days."""
+    f = good()
+    daily = f["data"]["daily"]
+    keep = [i for i, t in enumerate(daily["time"]) if t >= "2026-10-31"]
+    f["data"]["daily"] = {k: [v[i] for i in keep] for k, v in daily.items()}
+    return f
+
+
+def rain(hours_ago: float = 3, cached: bool = True) -> dict:
+    return {"ok": True, "data": copy.deepcopy(load_fixture("mtd_dharwad_2026-10.json")),
+            "fetched_at": iso(NOW - timedelta(hours=hours_ago)), "cached": cached}
+
+
+def deficit(body: dict) -> dict:
+    return next(r for r in body["rules"] if r["id"] == "rain_deficit")
+
+
+def test_past_rain_from_its_own_request_feeds_the_deficit_rule(world):
+    r = post(light(), past_rain=rain())
+    assert r.status_code == 200, r.text
+    body = r.json()
+    mtd = next(s for s in body["sources"] if s["id"] == "rain_mtd")
+    assert mtd["name"] == browser_forecast.PAST_RAIN_NAME and mtd["status"] == "ok" and mtd["cached"]
+    assert mtd["fetched_at"] == iso(NOW - timedelta(hours=3))  # its own fetch time, not the forecast's
+    assert deficit(body)["status"] != "unknown"
+    assert world == {"open_meteo": 0, "metno": 0}
+
+
+def test_light_forecast_without_past_rain_reports_rain_missing(world):
+    body = post(light(), past_rain={"ok": False, "status": 429, "error": "HTTP 429"}).json()
+    mtd = next(s for s in body["sources"] if s["id"] == "rain_mtd")
+    assert mtd["status"] == "failed" and "HTTP 429" in mtd["error"]
+    assert body["forecast_path"] == "browser" and deficit(body)["status"] == "unknown"
+    assert world == {"open_meteo": 0, "metno": 0}
+
+
+def test_past_rain_still_used_when_the_forecast_falls_back_to_met_norway(world):
+    body = post({"ok": False, "status": 429, "error": "HTTP 429"}, past_rain=rain()).json()
+    assert body["forecast_path"] == "metno"
+    mtd = next(s for s in body["sources"] if s["id"] == "rain_mtd")
+    assert mtd["status"] == "ok" and deficit(body)["status"] != "unknown"
+    assert world == {"open_meteo": 0, "metno": 1}
+
+
+@pytest.mark.parametrize("change, says", [
+    (lambda p: p.update(fetched_at=iso(NOW - timedelta(days=1))), "not fetched today"),
+    (lambda p: p["data"]["daily"]["time"].__setitem__(-1, "2026-10-31"), "outside 2026-10-01 to 2026-10-30"),
+    (lambda p: p["data"]["daily"]["precipitation_sum"].__setitem__(4, -3), "'daily.precipitation_sum'"),
+    (lambda p: p["data"].update(longitude=77.59), "the past rain is for"),
+])
+def test_bad_past_rain_is_rejected_before_any_fetch(world, change, says):
+    p = rain()
+    change(p)
+    r = post(light(), past_rain=p)
+    assert r.status_code == 422 and r.json()["error"]["code"] == "invalid_past_rain"
+    assert says in r.json()["error"]["message"], r.json()
+    assert world == {"open_meteo": 0, "metno": 0}

@@ -1,8 +1,10 @@
-// The browser-side forecast fetch: one Open-Meteo request per question, a 10-minute copy per place,
-// and a 429 handed to the server (which uses MET Norway) without a second Open-Meteo call.
+// The browser-side fetches: one forecast request per question (10-minute copy per place), past rain once per
+// place per day, and a 429 handed to the server (which uses MET Norway) without a second Open-Meteo call.
 import { describe, expect, it, vi } from "vitest";
 import { postAdvice } from "@/lib/api";
-import { cacheKey, fetchForecast, forecastUrl, pastDays, SOURCE_NAME } from "@/lib/forecastClient";
+import {
+  cacheKey, fetchForecast, fetchPastRain, forecastUrl, pastRainKey, pastRainUrl, rainWindow, SOURCE_NAME,
+} from "@/lib/forecastClient";
 
 const NOW = new Date("2026-10-31T11:50:00Z"); // 17:20 in Asia/Kolkata
 const PAYLOAD = { latitude: 15.43, longitude: 75.04, timezone: "Asia/Kolkata", hourly: {}, daily: {} };
@@ -16,8 +18,8 @@ const json = (status: number, body: unknown) =>
   new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
 describe("forecast request", () => {
-  it("asks for the same fields as the server, at two-decimal coordinates", () => {
-    const u = new URL(forecastUrl(15.46005, 75.00778, "2026-10-31"));
+  it("asks for the same fields as the server, at two-decimal coordinates, with no past days", () => {
+    const u = new URL(forecastUrl(15.46005, 75.00778));
     expect(u.origin + u.pathname).toBe("https://api.open-meteo.com/v1/forecast");
     expect(Object.fromEntries(u.searchParams)).toEqual({
       latitude: "15.46",
@@ -28,15 +30,48 @@ describe("forecast request", () => {
       forecast_hours: "73",
       past_hours: "0",
       forecast_days: "7",
-      past_days: "30",
+      past_days: "0",
     });
   });
 
-  it("goes back to the start of the rainfall window (last month on the 1st)", () => {
-    expect(pastDays("2026-10-31")).toBe(30);
-    expect(pastDays("2026-10-02")).toBe(1);
-    expect(pastDays("2026-11-01")).toBe(31);
-    expect(pastDays("2026-03-01")).toBe(28);
+  it("asks for past rain over the deficit window only", () => {
+    const u = new URL(pastRainUrl(15.46005, 75.00778, "2026-10-31"));
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      latitude: "15.46",
+      longitude: "75.01",
+      daily: "precipitation_sum",
+      timezone: "Asia/Kolkata",
+      start_date: "2026-10-01",
+      end_date: "2026-10-30",
+    });
+  });
+
+  it("uses the deficit window: this month to yesterday, or last month on the 1st", () => {
+    expect(rainWindow("2026-10-31")).toEqual({ start: "2026-10-01", end: "2026-10-30" });
+    expect(rainWindow("2026-10-02")).toEqual({ start: "2026-10-01", end: "2026-10-01" });
+    expect(rainWindow("2026-11-01")).toEqual({ start: "2026-10-01", end: "2026-10-31" });
+    expect(rainWindow("2026-03-01")).toEqual({ start: "2026-02-01", end: "2026-02-28" });
+    expect(rainWindow("2027-01-01")).toEqual({ start: "2026-12-01", end: "2026-12-31" });
+  });
+});
+
+describe("fetchPastRain", () => {
+  it("fetches once per place per day and again after midnight", async () => {
+    const storage = memoryStorage();
+    const fetchMock = vi.fn(async () => json(200, PAYLOAD));
+    let now = NOW;
+    const deps = { fetch: fetchMock as unknown as typeof fetch, storage, now: () => now };
+
+    expect(await fetchPastRain(15.46, 75.01, deps)).toMatchObject({ ok: true, cached: false });
+    now = new Date("2026-10-31T18:00:00Z"); // 23:30 in Asia/Kolkata, same day
+    expect(await fetchPastRain(15.46, 75.01, deps)).toMatchObject({ ok: true, cached: true, fetched_at: NOW.toISOString() });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(storage.m.has(pastRainKey(15.46, 75.01, "2026-10-31"))).toBe(true);
+
+    now = new Date("2026-10-31T18:40:00Z"); // 00:10 on 1 November
+    await fetchPastRain(15.46, 75.01, deps);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(String((fetchMock.mock.calls[1] as unknown[])[0])).toContain("end_date=2026-10-31");
   });
 });
 
@@ -52,7 +87,7 @@ describe("fetchForecast", () => {
     expect(storage.m.has(cacheKey(15.46, 75.01, "2026-10-31"))).toBe(true);
 
     now = new Date(NOW.getTime() + 9 * 60_000);
-    const again = await fetchForecast(15.4612, 75.0049, deps); // rounds to the same place
+    const again = await fetchForecast(15.4612, 75.0061, deps); // rounds to the same place (15.46, 75.01)
     expect(again).toMatchObject({ ok: true, cached: true, fetched_at: NOW.toISOString() });
     expect(fetchMock).toHaveBeenCalledTimes(1);
 

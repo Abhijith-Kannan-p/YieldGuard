@@ -48,6 +48,7 @@ export interface AdviceRequest {
   lon?: number;
   lang: string;
   forecast: BrowserForecast; // fetched in the browser first (lib/forecastClient.ts)
+  past_rain?: BrowserForecast; // daily rain over the deficit window, fetched once per place per day
 }
 
 export function postAdvice(body: AdviceRequest, signal: AbortSignal): Promise<AdviceResponse> {

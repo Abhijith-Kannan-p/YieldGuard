@@ -10,7 +10,7 @@ import MicButton from "./MicButton";
 import SavedFields from "./SavedFields";
 import ShareBar from "./ShareBar";
 import { ApiError, postAdvice, REQUEST_TIMEOUT_MS, searchPlaces } from "@/lib/api";
-import { fetchForecast, SOURCE_NAME, type BrowserForecast } from "@/lib/forecastClient";
+import { fetchForecast, fetchPastRain, SOURCE_NAME, type BrowserForecast } from "@/lib/forecastClient";
 import { fmtAge, fmtFetched, minutesSince } from "@/lib/format";
 import { fill, I18N, type Labels } from "@/lib/i18n";
 import {
@@ -217,21 +217,26 @@ export default function AdviceApp() {
       const keys = keysFor(where);
 
       try {
-        // The forecast is fetched here in the browser (one request per question, or the 10-minute copy),
-        // then posted with the question. A typed place name is looked up first, as the server would.
+        // The forecast is fetched here in the browser (one request per question, or the 10-minute copy), with the
+        // month's past rain (once per place per day), then posted with the question. A typed place name is
+        // looked up first, as the server would.
         let at: { lat: number; lon: number } | null =
           where.lat != null && where.lon != null ? { lat: where.lat, lon: where.lon } : null;
         if (!at) at = (await searchPlaces(where.name, ctrl.signal).catch(() => []))[0] ?? null;
-        const forecast: BrowserForecast = at
-          ? await fetchForecast(at.lat, at.lon)
-          : { ok: false, status: null, error: "place not found in the browser", source: SOURCE_NAME };
-        const body = { question: q, location: where.name, lat: where.lat, lon: where.lon, lang: langChoice, forecast };
+        const notFound: BrowserForecast = { ok: false, status: null, error: "place not found in the browser", source: SOURCE_NAME };
+        const [forecast, pastRain] = at
+          ? await Promise.all([fetchForecast(at.lat, at.lon), fetchPastRain(at.lat, at.lon)])
+          : [notFound, notFound];
+        const body = {
+          question: q, location: where.name, lat: where.lat, lon: where.lon, lang: langChoice, forecast, past_rain: pastRain,
+        };
         const res = await postAdvice(body, ctrl.signal).catch((e: unknown) => {
-          if (!(e instanceof ApiError && e.code === "invalid_forecast")) throw e;
-          // The server rejected the browser's forecast (e.g. the device clock is wrong): ask once more
-          // without it, so the server uses MET Norway. No second Open-Meteo call.
+          if (!(e instanceof ApiError && (e.code === "invalid_forecast" || e.code === "invalid_past_rain"))) throw e;
+          // The server rejected what the browser fetched (e.g. the device clock is wrong): ask once more
+          // without the rejected part. A rejected forecast means MET Norway is used. No second Open-Meteo call.
           const failed: BrowserForecast = { ok: false, status: null, error: `rejected: ${e.message}`.slice(0, 250), source: SOURCE_NAME };
-          return postAdvice({ ...body, forecast: failed }, ctrl.signal);
+          const retry = e.code === "invalid_forecast" ? { ...body, forecast: failed } : { ...body, past_rain: failed };
+          return postAdvice(retry, ctrl.signal);
         });
         const allKeys = [...keys, placeKey({ lat: res.location.lat, lon: res.location.lon })];
         const failedNow = res.sources.filter((s) => s.status !== "ok");
