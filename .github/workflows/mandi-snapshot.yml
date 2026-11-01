@@ -18,8 +18,6 @@ jobs:
   snapshot:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    env:
-      DATA_WORKTREE: ${{ runner.temp }}/data-branch
     steps:
       - name: Check out main (the script)
         uses: actions/checkout@v7
@@ -37,6 +35,8 @@ jobs:
       - name: Check out the data branch (or start it as an orphan)
         run: |
           set -euo pipefail
+          DATA_WORKTREE="$RUNNER_TEMP/data-branch"
+          echo "DATA_WORKTREE=$DATA_WORKTREE" >> "$GITHUB_ENV"  # read by the next steps
           if git ls-remote --exit-code --heads origin data >/dev/null; then
             git fetch --depth=1 origin +refs/heads/data:refs/remotes/origin/data
             git worktree add -B data "$DATA_WORKTREE" refs/remotes/origin/data
@@ -51,9 +51,9 @@ jobs:
         run: python -m devtools.fetch_mandi_snapshot --out "$DATA_WORKTREE/data/mandi"
 
       - name: Commit to the data branch if anything changed
-        working-directory: ${{ runner.temp }}/data-branch
         run: |
           set -euo pipefail
+          cd "$DATA_WORKTREE"
           git add data/mandi
           if git diff --cached --quiet; then
             echo "no change to commit"
