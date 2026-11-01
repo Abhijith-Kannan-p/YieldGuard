@@ -1,6 +1,6 @@
 {
  "records": [],
- "total": 2,
+ "total": 3,
  "by_query": {
   "Ramanagara": {
    "results": [
@@ -66,6 +66,30 @@
     }
    ],
    "generationtime_ms": 0.20587444
+  },
+  "Closepet": {
+   "results": [
+    {
+     "id": 1258744,
+     "name": "Closepet",
+     "latitude": 12.72181,
+     "longitude": 77.28149,
+     "elevation": 695.0,
+     "feature_code": "PPL",
+     "country_code": "IN",
+     "admin1_id": 1267701,
+     "admin2_id": 8224306,
+     "admin3_id": 8224550,
+     "timezone": "Asia/Kolkata",
+     "population": 95167,
+     "country_id": 1269750,
+     "country": "India",
+     "admin1": "Karnataka",
+     "admin2": "Ramanagara District",
+     "admin3": "Ramanagara"
+    }
+   ],
+   "generationtime_ms": 0.14817715
   }
  }
 }

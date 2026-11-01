@@ -146,6 +146,12 @@ def market_query(market: str) -> str:
     return " ".join(name.split())
 
 
+def lookup_name(market: str) -> str:
+    """The name to geocode: the cleaned market name, or its alias from MARKET_GEOCODE_NAMES."""
+    q = market_query(market)
+    return config.MARKET_GEOCODE_NAMES.get(q, q)
+
+
 def _district(s: str | None) -> str:
     return re.sub(r"\bdistrict\b", "", (s or "").lower()).strip()
 
@@ -159,7 +165,7 @@ async def _locate(market: str, district: str) -> tuple[dict | None, bool]:
     key = f"{market}|{district}"
     if key in _located:
         return _located[key], False
-    res = await geocode.search(market_query(market))
+    res = await geocode.search(lookup_name(market))
     if not res.ok:
         return None, True
     hits = res.data or []

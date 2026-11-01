@@ -260,6 +260,39 @@ async def test_lookup_cap_gives_incomplete_not_no_nearby(saved_geocoder, monkeyp
     assert saved_geocoder == []
 
 
+TOMATO = {"crop": "tomato", "word": "tomato"}  # reported only by Ramanagara APMC in the saved snapshot
+
+
+@needs_snapshot
+async def test_market_alias_locates_ramanagara_but_shows_its_own_name(saved_geocoder, monkeypatch):
+    monkeypatch.setattr(config, "MANDI_MAX_DISTANCE_KM", 10_000)
+    src = snapshot_src()
+    res = await mandi.nearest(dharwad(), TOMATO, src, snapshot_day(src))
+    assert res["status"] == "found" and saved_geocoder == ["Closepet"]  # looked up by its alias
+    closepet = geocode.pick_karnataka(load_fixture("mandi_geocode.json")["by_query"]["Closepet"]["results"])[0]
+    m = res["market"]
+    assert m["name"] == "Ramanagara APMC" and m["located_as"] == "Closepet"  # the farmer sees the data.gov.in name
+    assert (m["lat"], m["lon"]) == (closepet.lat, closepet.lon) and res["markets_not_located"] == 0
+    ev = evidence.Evidence()
+    evidence.add_mandi(ev, src, res)
+    assert next(p for p in ev.points if p["id"] == "mandi_market")["value"].startswith("Ramanagara APMC")
+
+    monkeypatch.setattr(config, "MANDI_MAX_DISTANCE_KM", 125)  # Ramanagara is far from Dharwad
+    far = await mandi.nearest(dharwad(), TOMATO, src, snapshot_day(src))
+    assert far["status"] == "no_nearby_market" and far["nearest_beyond"]["market"] == "Ramanagara APMC"
+    assert far["nearest_beyond"]["distance_km"] > 125
+
+
+@needs_snapshot
+async def test_unaliased_market_that_does_not_geocode_is_still_incomplete(saved_geocoder, monkeypatch):
+    monkeypatch.setattr(config, "MARKET_GEOCODE_NAMES", {})
+    src = snapshot_src()
+    res = await mandi.nearest(dharwad(), TOMATO, src, snapshot_day(src))
+    # The saved real lookup for "Ramanagara" has only Andhra Pradesh towns, so the market is not located.
+    assert saved_geocoder == ["Ramanagara"]
+    assert res["status"] == "incomplete" and res["markets_not_located"] == 1 and res["records"] == []
+
+
 @needs_snapshot
 async def test_saved_snapshot_is_served_during_the_retry_pause(keyed, monkeypatch):
     src = snapshot_src()

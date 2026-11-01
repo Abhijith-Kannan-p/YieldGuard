@@ -1,11 +1,13 @@
 """Save real data.gov.in mandi responses to tests/fixtures (for tests only; the app never reads them).
 
     cd backend
-    python -m devtools.capture_mandi
+    python -m devtools.capture_mandi                  # snapshot, empty response and market geocoding
+    python -m devtools.capture_mandi --geocode-only   # only add missing market lookups for the saved snapshot
 
 Needs DATAGOV_API_KEY in the environment (or .env). The key is never written to the saved files.
 Saves the full Karnataka snapshot, a real empty response (a commodity filter that matches nothing),
-and the real Open-Meteo geocoding response for each market name in the snapshot.
+and the real Open-Meteo geocoding response for each market name in the snapshot (the cleaned name and,
+if config.MARKET_GEOCODE_NAMES has one, its alias). Existing geocoding entries are kept.
 """
 import json
 import sys
@@ -14,7 +16,7 @@ from pathlib import Path
 import httpx
 
 from app import config
-from app.sources.mandi import market_query
+from app.sources.mandi import lookup_name, market_query
 from app.timeutil import iso, now_local
 
 FIXTURES = Path(__file__).resolve().parents[1] / "tests" / "fixtures"
@@ -44,7 +46,25 @@ def save(name: str, payload: dict, query: str) -> None:
     print(f"saved {name}: total={payload.get('total')} records={len(payload.get('records') or [])}")
 
 
+def save_geocoding(records: list) -> None:
+    path = FIXTURES / "mandi_geocode.json"
+    geo = json.loads(path.read_text(encoding="utf-8"))["by_query"] if path.exists() else {}
+    names = {market_query(r.get("market", "")) for r in records} | {lookup_name(r.get("market", "")) for r in records}
+    for name in sorted(names - {""} - set(geo)):
+        r = httpx.get(config.GEOCODING_URL, params={"name": name, "count": 10, "language": "en", "format": "json",
+                                                    "countryCode": config.COUNTRY_CODE}, timeout=30)
+        geo[name] = r.json() if r.status_code == 200 else {"error": f"HTTP {r.status_code}"}
+    save("mandi_geocode.json", {"records": [], "total": len(geo), "by_query": geo},
+         f"Open-Meteo Geocoding for market names in the snapshot: {', '.join(sorted(geo))}")
+
+
 def main() -> None:
+    if "--geocode-only" in sys.argv:
+        snaps = sorted(FIXTURES.glob("mandi_karnataka_*.json"))
+        if not snaps:
+            sys.exit("no saved snapshot: run without --geocode-only first")
+        save_geocoding(json.loads(snaps[-1].read_text(encoding="utf-8")).get("records") or [])
+        return
     if not config.DATAGOV_API_KEY:
         sys.exit("set DATAGOV_API_KEY first")
     snap = get({"limit": config.MANDI_PAGE_SIZE, "offset": 0, "filters[state.keyword]": config.REGION_NAME})
@@ -53,14 +73,7 @@ def main() -> None:
     save(f"mandi_karnataka_{stamp}.json", snap, f"filters[state.keyword]=Karnataka limit={config.MANDI_PAGE_SIZE}")
     empty = get({"limit": 10, "filters[state.keyword]": config.REGION_NAME, "filters[commodity]": "No Such Commodity"})
     save("mandi_empty.json", empty, "filters[state.keyword]=Karnataka filters[commodity]=No Such Commodity")
-    names = sorted({market_query(r.get("market", "")) for r in snap.get("records") or []} - {""})
-    geo = {}
-    for name in names:
-        r = httpx.get(config.GEOCODING_URL, params={"name": name, "count": 10, "language": "en", "format": "json",
-                                                    "countryCode": config.COUNTRY_CODE}, timeout=30)
-        geo[name] = r.json() if r.status_code == 200 else {"error": f"HTTP {r.status_code}"}
-    save("mandi_geocode.json", {"records": [], "total": len(geo), "by_query": geo},
-         f"Open-Meteo Geocoding for {len(geo)} market names in the snapshot")
+    save_geocoding(snap.get("records") or [])
 
 
 if __name__ == "__main__":

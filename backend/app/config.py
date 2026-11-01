@@ -194,6 +194,8 @@ MANDI_RETRY_AFTER_S = 5 * 60      # after a failed fetch, no new attempt for thi
 MANDI_MAX_DISTANCE_KM = 125.0     # markets farther than this are never used
 MANDI_MAX_GEOCODES = 12           # new market-name lookups per question (cached lookups are free)
 MANDI_MAX_VARIETIES = 3           # varieties of the crop shown for the chosen market
+# data.gov.in and Open-Meteo name some places differently (Ramanagara is listed as Closepet); names only, no coordinates.
+MARKET_GEOCODE_NAMES = {"Ramanagara": "Closepet"}
 
 # Crop words a farmer may type -> fragments of Agmarknet commodity names (case-insensitive).
 # "exclude": commodity names containing these are other products (e.g. dal). Longest word wins,
