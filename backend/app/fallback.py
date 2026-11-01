@@ -180,3 +180,105 @@ def compose(lang: str, results: dict, rules: list[dict], failed_sources: list[di
         "missing_data": missing,
         "disclaimer": t["disclaimer"],
     }
+
+
+# Mandi page analysis without the language model: the same summary and sections, from rule outcomes only.
+TA = {
+    "en": {
+        "t_price": "Price at the nearest market", "t_nearby": "Other markets nearby", "t_varieties": "Varieties",
+        "t_weather": "Weather and timing",
+        "spread": "At {market} the price ranged from Rs {lo} to Rs {hi} per quintal, a spread of Rs {spread}.",
+        "nearby": "{market} ({km} km): Rs {modal} per quintal, a difference of Rs {diff} from {nearest}.",
+        "nearby_none": "No other market within {km} km reports this crop.",
+        "variety": "{variety}: Rs {modal} per quintal (min {lo}, max {hi}).",
+        "dry": "Estimate, not a harvest recommendation: forecast days that look dry (rain at most {mm} mm, maximum "
+               "below {t} °C): {dates}.",
+        "dry_none": "Estimate, not a harvest recommendation: no forecast day looks dry (rain at most {mm} mm, maximum "
+                    "below {t} °C).",
+        "weather_none": "The forecast is unavailable, so timing against the weather could not be checked.",
+        "disclaimer": "Prices change daily. Confirm with the market or your local agriculture officer before selling.",
+    },
+    "hi": {
+        "t_price": "सबसे नज़दीकी मंडी का भाव", "t_nearby": "पास की अन्य मंडियाँ", "t_varieties": "किस्में",
+        "t_weather": "मौसम और समय",
+        "spread": "{market} में भाव Rs {lo} से Rs {hi} प्रति क्विंटल रहा, यानी Rs {spread} का अंतर।",
+        "nearby": "{market} ({km} किमी): Rs {modal} प्रति क्विंटल, {nearest} से Rs {diff} का अंतर।",
+        "nearby_none": "{km} किमी के भीतर कोई अन्य मंडी इस फसल का भाव नहीं बताती।",
+        "variety": "{variety}: Rs {modal} प्रति क्विंटल (न्यूनतम {lo}, अधिकतम {hi})।",
+        "dry": "केवल अनुमान, कटाई की सलाह नहीं: पूर्वानुमान में सूखे दिखने वाले दिन (बारिश अधिकतम {mm} मिमी, अधिकतम "
+               "तापमान {t} °C से कम): {dates}।",
+        "dry_none": "केवल अनुमान, कटाई की सलाह नहीं: पूर्वानुमान में कोई दिन सूखा नहीं दिखता (बारिश अधिकतम {mm} मिमी, "
+                    "अधिकतम तापमान {t} °C से कम)।",
+        "weather_none": "पूर्वानुमान उपलब्ध नहीं है, इसलिए मौसम के हिसाब से समय नहीं जाँचा जा सका।",
+        "disclaimer": "भाव रोज़ बदलते हैं। बेचने से पहले मंडी या अपने स्थानीय कृषि अधिकारी से पुष्टि करें।",
+    },
+    "kn": {
+        "t_price": "ಹತ್ತಿರದ ಮಾರುಕಟ್ಟೆಯ ಬೆಲೆ", "t_nearby": "ಹತ್ತಿರದ ಇತರ ಮಾರುಕಟ್ಟೆಗಳು", "t_varieties": "ತಳಿಗಳು",
+        "t_weather": "ಹವಾಮಾನ ಮತ್ತು ಸಮಯ",
+        "spread": "{market} ನಲ್ಲಿ ಬೆಲೆ ಕ್ವಿಂಟಾಲ್‌ಗೆ Rs {lo} ರಿಂದ Rs {hi} ವರೆಗೆ ಇತ್ತು, ಅಂದರೆ Rs {spread} ವ್ಯತ್ಯಾಸ.",
+        "nearby": "{market} ({km} ಕಿ.ಮೀ): ಕ್ವಿಂಟಾಲ್‌ಗೆ Rs {modal}, {nearest} ಗಿಂತ Rs {diff} ವ್ಯತ್ಯಾಸ.",
+        "nearby_none": "{km} ಕಿ.ಮೀ ಒಳಗೆ ಬೇರೆ ಯಾವುದೇ ಮಾರುಕಟ್ಟೆ ಈ ಬೆಳೆಯ ಬೆಲೆ ವರದಿ ಮಾಡಿಲ್ಲ.",
+        "variety": "{variety}: ಕ್ವಿಂಟಾಲ್‌ಗೆ Rs {modal} (ಕನಿಷ್ಠ {lo}, ಗರಿಷ್ಠ {hi}).",
+        "dry": "ಅಂದಾಜು ಮಾತ್ರ, ಕೊಯ್ಲಿನ ಸಲಹೆ ಅಲ್ಲ: ಒಣಗಿರುವಂತೆ ಕಾಣುವ ಮುನ್ಸೂಚನೆಯ ದಿನಗಳು (ಮಳೆ ಗರಿಷ್ಠ {mm} ಮಿ.ಮೀ, "
+               "ಗರಿಷ್ಠ ತಾಪಮಾನ {t} °C ಗಿಂತ ಕಡಿಮೆ): {dates}.",
+        "dry_none": "ಅಂದಾಜು ಮಾತ್ರ, ಕೊಯ್ಲಿನ ಸಲಹೆ ಅಲ್ಲ: ಯಾವುದೇ ಮುನ್ಸೂಚನೆಯ ದಿನ ಒಣಗಿರುವಂತೆ ಕಾಣುವುದಿಲ್ಲ (ಮಳೆ ಗರಿಷ್ಠ {mm} "
+                    "ಮಿ.ಮೀ, ಗರಿಷ್ಠ ತಾಪಮಾನ {t} °C ಗಿಂತ ಕಡಿಮೆ).",
+        "weather_none": "ಮುನ್ಸೂಚನೆ ಲಭ್ಯವಿಲ್ಲ, ಆದ್ದರಿಂದ ಹವಾಮಾನದ ಪ್ರಕಾರ ಸಮಯವನ್ನು ಪರಿಶೀಲಿಸಲಾಗಲಿಲ್ಲ.",
+        "disclaimer": "ಬೆಲೆಗಳು ಪ್ರತಿದಿನ ಬದಲಾಗುತ್ತವೆ. ಮಾರುವ ಮೊದಲು ಮಾರುಕಟ್ಟೆ ಅಥವಾ ಸ್ಥಳೀಯ ಕೃಷಿ ಅಧಿಕಾರಿಯೊಂದಿಗೆ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ.",
+    },
+}
+
+
+def compose_mandi_analysis(lang: str, mandi: dict, heavy: dict | None, heat: dict | None, dry: dict | None) -> dict:
+    """Summary and sections from the mandi result and the weather rules; every number comes from them."""
+    t, ta = T.get(lang, T["en"]), TA.get(lang, TA["en"])
+    km = f"{mandi['max_distance_km']:g}"
+    sections = []
+    if mandi["status"] in ("found", "latest"):
+        r, m = mandi["records"][0], mandi["market"]
+        price = t[f"mandi_{mandi['status']}"].format(crop=mandi["crop_word"], market=m["name"], km=f"{m['distance_km']:g}",
+                                                    modal=_price(r["modal_price"]), lo=_price(r["min_price"]),
+                                                    hi=_price(r["max_price"]), date=r["arrival_date"])
+        text, ids = price, ["mandi_modal_price", "mandi_min_price", "mandi_max_price", "mandi_market",
+                            "mandi_distance_km", "mandi_arrival_date"]
+        if r["min_price"] is not None and r["max_price"] is not None:
+            text += " " + ta["spread"].format(market=m["name"], lo=_price(r["min_price"]), hi=_price(r["max_price"]),
+                                              spread=_price(round(r["max_price"] - r["min_price"], 1)))
+            ids.append("mandi_spread")
+        sections.append({"title": ta["t_price"], "text": text, "evidence": ids})
+        lines, ids = [], []
+        for i, n in enumerate(mandi.get("nearby") or [], 1):
+            nr = n["records"][0]
+            lines.append(ta["nearby"].format(market=n["market"], km=f"{n['distance_km']:g}", modal=_price(nr["modal_price"]),
+                                             diff=f"{round(nr['modal_price'] - r['modal_price'], 1):+g}", nearest=m["name"]))
+            ids += [f"mandi_nearby_{i}_modal", f"mandi_nearby_{i}_km", f"mandi_nearby_{i}_diff"]
+        sections.append({"title": ta["t_nearby"], "text": " ".join(lines) or ta["nearby_none"].format(km=km),
+                         "evidence": ids})
+        if len(mandi["records"]) > 1:
+            sections.append({"title": ta["t_varieties"], "text": " ".join(
+                ta["variety"].format(variety=v["variety"] or v["commodity"], modal=_price(v["modal_price"]),
+                                     lo=_price(v["min_price"]), hi=_price(v["max_price"])) for v in mandi["records"]),
+                "evidence": ["mandi_modal_price"] + [f"mandi_v{i}_modal_price" for i in range(2, len(mandi["records"]) + 1)]})
+    elif mandi["status"] == "no_nearby_market":
+        sections.append({"title": ta["t_price"], "text": t["mandi_no_nearby"].format(km=km, crop=mandi["crop_word"]),
+                         "evidence": ["mandi_nearest_beyond_km"]})
+    else:
+        sections.append({"title": ta["t_price"], "text": t["mandi_none"].format(crop=mandi["crop_word"]), "evidence": []})
+
+    weather, ids = [], []
+    if heavy and heavy["status"] == "warning":
+        weather.append(t["heavy_warning"].format(prob=heavy["max_precip_prob_pct"], mm=heavy["total_precip_mm"]))
+        ids += ["max_rain_prob_24h", "rain_total_24h"]
+    if heat and heat["status"] == "warning":
+        weather.append(t["heat"].format(dates=", ".join(fmt_day(d["date"]) for d in heat["hot_days"]),
+                                        t=heat["thresholds"]["tmax_c"]))
+        ids += [f"heat_day_{i}" for i in range(1, len(heat["hot_days"]) + 1)]
+    if dry and dry["status"] in ("found", "none"):
+        th = dry["thresholds"]
+        key = "dry" if dry["dry_days"] else "dry_none"
+        weather.append(ta[key].format(mm=f"{th['max_rain_mm']:g}", t=f"{th['tmax_below_c']:g}",
+                                      dates=", ".join(fmt_day(d["date"]) for d in dry["dry_days"])))
+        ids += [f"dry_day_{i}" for i in range(1, len(dry["dry_days"]) + 1)]
+    sections.append({"title": ta["t_weather"], "text": " ".join(weather) or ta["weather_none"], "evidence": ids})
+    return {"summary": f"{t['prefix']} {sections[0]['text']}", "sections": sections, "missing_data": [],
+            "disclaimer": ta["disclaimer"]}

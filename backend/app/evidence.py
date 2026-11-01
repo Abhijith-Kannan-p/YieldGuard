@@ -240,6 +240,29 @@ def add_heat(ev: Evidence, fc: SourceResult, res: dict | None):
     ev.rule("heat", "Heat stress", res["status"], summary, t, ids + ["tmax_peak"])
 
 
+def add_dry_days(ev: Evidence, fc: SourceResult, res: dict | None):
+    name = "Dry days for harvest and transport (estimate)"
+    if not fc.ok or res is None or res["status"] == "unknown":
+        ev.rule("dry_days", name, "unknown", "Daily rain or maximum temperature unavailable.", {}, [])
+        return
+    t = res["thresholds"]
+    ids = []
+    for i, d in enumerate(res["dry_days"], 1):
+        pid = f"dry_day_{i}"
+        ev.add(pid, f"Dry day {_short_date(d['date'])}: rain mm, maximum °C", f"rain {d['rain_mm']} mm, maximum "
+               f"{d['tmax_c']} °C", "", fc, d["date"])
+        ids.append(pid)
+    rule = f"rain at most {t['max_rain_mm']:g} mm and maximum below {t['tmax_below_c']:g} °C"
+    span = f"{res['first_date']} to {res['last_date']}"
+    if res["dry_days"]:
+        dates = ", ".join(d["date"] for d in res["dry_days"])
+        summary = (f"Estimate only, not a harvest recommendation: {len(res['dry_days'])} of {res['days_checked']} "
+                   f"forecast days from {span} look dry ({rule}): {dates}.")
+    else:
+        summary = f"Estimate only, not a harvest recommendation: no forecast day from {span} looks dry ({rule})."
+    ev.rule("dry_days", name, res["status"], summary, t, ids)
+
+
 def add_fertiliser(ev: Evidence, fc: SourceResult, res: dict | None):
     if not fc.ok or res is None or res["status"] == "unknown":
         ev.rule("fertiliser", "Fertiliser timing", "unknown", "Forecast unavailable for the next 48 hours.", {}, [])
@@ -307,6 +330,34 @@ def add_mandi(ev: Evidence, src: SourceResult, res: dict):
     if when and res["status"] != "unknown":
         t["snapshot_date"] = when
     ev.rule("mandi_price", "Mandi price (nearest market)", res["status"], summary, t, ids)
+
+
+def add_market_compare(ev: Evidence, src: SourceResult, res: dict):
+    """The chosen market's price spread and the other markets within the limit, all from the snapshot."""
+    name = "Nearby markets and price spread"
+    if res["status"] not in ("found", "latest"):
+        ev.rule("mandi_compare", name, "unknown", "No market price to compare.", {}, [])
+        return
+    main, ids = res["records"][0], []
+    if main["min_price"] is not None and main["max_price"] is not None:
+        ev.add("mandi_spread", f"Price spread at {res['market']['name']} (max minus min)",
+               round(main["max_price"] - main["min_price"], 1), UNIT_PER_QUINTAL, src, main["arrival_date"])
+        ids.append("mandi_spread")
+    for i, n in enumerate(res.get("nearby") or [], 1):
+        r = n["records"][0]
+        where = f"{n['market']} ({n['district']})"
+        ev.add(f"mandi_nearby_{i}_modal", f"Modal price at {where}", r["modal_price"], UNIT_PER_QUINTAL, src,
+               r["arrival_date"])
+        ev.add(f"mandi_nearby_{i}_km", f"Distance to {where}", n["distance_km"], "km", src)
+        ev.add(f"mandi_nearby_{i}_diff", f"Modal price at {where} minus {res['market']['name']}",
+               round(r["modal_price"] - main["modal_price"], 1), UNIT_PER_QUINTAL, src, r["arrival_date"])
+        ids += [f"mandi_nearby_{i}_modal", f"mandi_nearby_{i}_km", f"mandi_nearby_{i}_diff"]
+    others = len(res.get("nearby") or [])
+    limit = f"{res['max_distance_km']:g} km"
+    summary = (f"{others} other market(s) within {limit} report this crop." if others
+               else f"No other market within {limit} reports this crop, so there is nothing to compare.")
+    ev.rule("mandi_compare", name, "found" if others else "none", summary, {"max_distance_km": res["max_distance_km"]},
+            ids)
 
 
 def data_lookup(ev: Evidence) -> dict[str, dict]:

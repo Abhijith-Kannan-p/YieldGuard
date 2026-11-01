@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import baseline, config, followup, llm, mandi_page, sessions, today
+from . import baseline, config, followup, llm, mandi_analysis, mandi_page, sessions, today
 from .advisor import AdviceError, advise
 from .http import close_client
 from .sources import geocode
@@ -167,6 +167,22 @@ async def get_mandi(
 ):
     """Today's reported price at the nearest market reporting this crop, and the other markets nearby. No LLM."""
     return await mandi_page.prices(location, lat, lon, crop.strip())
+
+
+class MandiAnalysisIn(BaseModel):
+    crop: str = Field(..., min_length=1, max_length=120)  # exact Agmarknet name, from /api/mandi/crops
+    location: str | None = Field(None, max_length=200)
+    lat: float | None = Field(None, ge=-90, le=90)
+    lon: float | None = Field(None, ge=-180, le=180)
+    lang: str = "en"
+    forecast: BrowserForecastIn  # fetched in the browser, as on the advice page
+
+
+@app.post("/api/mandi/analysis")
+async def post_mandi_analysis(body: MandiAnalysisIn):
+    """The Mandi page's analysis of one crop: prices, nearby markets and weather timing, cited and number-checked."""
+    return await mandi_analysis.analyse(body.crop.strip(), body.location, body.lat, body.lon, body.lang,
+                                        body.forecast.model_dump())
 
 
 @app.get("/api/locations")

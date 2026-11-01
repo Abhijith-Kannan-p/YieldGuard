@@ -51,5 +51,10 @@
   "captured_at": "2026-11-01T19:37:13+05:30",
   "source": "GitHub (YieldGuard data branch)",
   "query": "raw data/mandi/no-such-file.json (HTTP 404)"
+ },
+ "forecast_browser_dharwad_2026-11-01.json": {
+  "captured_at": "2026-11-01T22:57:50+05:30",
+  "source": "Open-Meteo Forecast API",
+  "query": "browser request: forecast_hours=73 past_hours=0 forecast_days=7 past_days=0 (Dharwad)"
  }
 }

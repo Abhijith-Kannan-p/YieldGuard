@@ -38,6 +38,15 @@ def find_crop(question: str) -> dict | None:
     return {"crop": crop, "word": word}
 
 
+_PRICE_PATTERNS = [_pattern(w.lower()) for w in config.MANDI_PRICE_WORDS]
+
+
+def asks_price(question: str) -> bool:
+    """Whether the question asks about price or selling (MANDI_PRICE_WORDS, matched like crop words)."""
+    text = " ".join((question or "").lower().split())
+    return any(p.search(text) for p in _PRICE_PATTERNS)
+
+
 def matches(crop: str, commodity: str) -> bool:
     """Whether an Agmarknet commodity name (e.g. "Jowar(Sorghum)") is this crop."""
     a = config.CROP_ALIASES[crop]

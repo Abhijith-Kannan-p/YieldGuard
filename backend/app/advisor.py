@@ -125,8 +125,8 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     browser_mtd = (_past_rain(client_past_rain, place, win_start, win_end, now)
                    if client_forecast is not None and client_past_rain is not None else None)
     # The page sends a forecast fetched in the visitor's browser; without one the server fetches it.
-    # Mandi prices only when the question names a crop.
-    crop = crops.find_crop(question)
+    # Mandi prices only when the question asks about price or selling and names a crop.
+    crop = crops.find_crop(question) if crops.asks_price(question) else None
     fc, base, soil_src, mandi_src = await asyncio.gather(
         _forecast(client_forecast, place, win_start, now),
         baseline.store.get(place, now.date()),

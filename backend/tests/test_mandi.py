@@ -369,3 +369,96 @@ async def test_request_urls_with_the_key_are_never_logged(keyed, monkeypatch, ca
         await mandi._task
     assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING
     assert "test-key" not in caplog.text and "fetch api.data.gov.in" in caplog.text
+
+
+# Advice path: mandi prices only for price or selling questions
+
+@pytest.mark.parametrize("question, asks", [
+    ("What is the price of jowar?", True), ("Should I sell my maize now?", True), ("ಜೋಳದ ಬೆಲೆ ಎಷ್ಟು?", True),
+    ("ज्वार का भाव क्या है?", True), ("Can I spray jowar tomorrow?", False),
+    ("ಇದರ ಬಗ್ಗೆ ಹೇಳಿ, ಜೋಳ ಸಿಂಪಡಿಸಬಹುದೇ?", False),  # ಇದರ holds ದರ (rate), which is why ದರ is not a price word
+    ("ಈ ಮಾರ್ಗದಲ್ಲಿ ಮಳೆ ಬರುತ್ತದೆಯೇ?", False), ("marketing tips", False),
+])
+def test_price_questions(question, asks):
+    assert crops.asks_price(question) is asks
+
+
+@pytest.fixture
+def advice_world(monkeypatch):
+    """The advice path with saved real forecast, baseline and soil; data.gov.in calls are counted."""
+    calls = []
+    payload = load_fixture(SNAPSHOTS[-1].name) if SNAPSHOTS else {"records": [], "total": 0}
+
+    async def api(url, params, **kw):
+        calls.append(url)
+        return payload
+
+    monkeypatch.setattr(config, "DATAGOV_API_KEY", "test-key")
+    monkeypatch.setattr(mandi, "get_json", api)
+    return calls
+
+
+def _advice(question, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from app import advisor, llm
+    from app.main import app
+
+    from .test_api import DHARWAD, NOW, ok
+    from app.sources.forecast import parse_hourly
+    from app.sources.rainfall import parse_daily
+    from app.sources.soil import convert
+
+    state = {
+        "forecast": ok("forecast", {**parse_hourly(load_fixture("forecast_dharwad.json")),
+                                    "daily": parse_daily(load_fixture("mtd_dharwad_2026-10.json"))}),
+        "base": ok("rain_baseline", {"daily": parse_daily(load_fixture("archive_dharwad_2000_2025.json")),
+                                     "district": "Dharwad district", "start_year": 2000, "end_year": 2025}),
+        "soil": ok("soil", {"properties": convert(load_fixture("soil_dharwad_nearby.json")),
+                            "query_lat": 15.4801, "query_lon": 75.0078, "offset_km": 2.2}),
+    }
+
+    async def geo(q, count=10):
+        return ok("geocode", [DHARWAD])
+
+    async def fc(*a, **k):
+        return state["forecast"]
+
+    async def base(*a, **k):
+        return state["base"]
+
+    async def soil(*a, **k):
+        return state["soil"]
+
+    monkeypatch.setattr(advisor.geocode, "search", geo)
+    monkeypatch.setattr(advisor.forecast, "fetch", fc)
+    monkeypatch.setattr(advisor.baseline.store, "get", base)
+    monkeypatch.setattr(advisor.soil, "fetch", soil)
+    monkeypatch.setattr(advisor, "now_local", lambda: NOW)
+    monkeypatch.setattr(llm.config, "GEMINI_API_KEY", "")
+    monkeypatch.setattr(config, "MANDI_MAX_DISTANCE_KM", 10_000)
+    return TestClient(app).get("/api/advice", params={"q": question, "location": "Dharwad"}).json()
+
+
+@needs_snapshot
+def test_price_question_still_brings_prices(advice_world, monkeypatch):
+    body = _advice("What is the price of jowar?", monkeypatch)
+    assert body["mandi"]["status"] in ("found", "latest") and len(advice_world) == 1
+    assert any(s["id"] == "mandi" for s in body["sources"])
+
+
+def test_spray_question_naming_a_crop_brings_no_prices(advice_world, monkeypatch):
+    body = _advice("Can I spray jowar tomorrow?", monkeypatch)
+    assert body["mandi"] is None and advice_world == []
+    assert not any(s["id"] == "mandi" for s in body["sources"])
+    assert not any(p["id"].startswith("mandi") for p in body["data_points"])
+    assert not any(r["id"] == "mandi_price" for r in body["rules"])
+
+
+def test_other_advice_output_is_unchanged(advice_world, monkeypatch):
+    with_crop = _advice("Can I spray jowar tomorrow?", monkeypatch)
+    without = _advice("Can I spray tomorrow?", monkeypatch)
+    for key in ("data_points", "rules", "spray_windows", "forecast_hourly", "forecast_daily", "water_balance",
+                "heat", "fertiliser", "sources", "warnings"):
+        assert with_crop[key] == without[key], key
+    assert with_crop["answer"]["recommendations"] == without["answer"]["recommendations"]

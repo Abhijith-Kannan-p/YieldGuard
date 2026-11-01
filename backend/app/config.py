@@ -186,6 +186,9 @@ IRRIGATION_DEFICIT_MM = 25.0       # suggest irrigating on the first day the run
 # ---------------------------------------------------------------------------
 HEAT_THRESHOLD_C = 35.0            # flag any day whose temperature_2m_max is above this (deg C)
 
+# RULE: dry days for harvest and transport (next FORECAST_DAILY_DAYS days) - an estimate, not a harvest recommendation
+DRY_DAY_MAX_RAIN_MM = 2.0          # a day counts as dry if forecast rain is at most this (mm) and its max is below HEAT_THRESHOLD_C
+
 # ---------------------------------------------------------------------------
 # RULE: fertiliser timing (next 48 h) - rain soon after application leaches nutrients
 # ---------------------------------------------------------------------------
@@ -206,6 +209,15 @@ MANDI_MAX_GEOCODES = 12           # new market-name lookups per question (cached
 MANDI_MAX_VARIETIES = 3           # varieties of the crop shown for the chosen market
 # data.gov.in and Open-Meteo name some places differently (Ramanagara is listed as Closepet); names only, no coordinates.
 MARKET_GEOCODE_NAMES = {"Ramanagara": "Closepet"}
+
+# The advice path shows mandi prices only when the question asks about price or selling (crops.asks_price).
+# Kannada "ದರ" is left out: it sits inside the common word "ಇದರ" (of this); "ಮಾರ" alone also starts "ಮಾರ್ಗ" (route).
+MANDI_PRICE_WORDS = [
+    "price", "prices", "rate", "rates", "sell", "selling", "sale", "mandi", "market", "apmc",
+    "भाव", "दाम", "कीमत", "मूल्य", "बेच", "मंडी", "बाजार", "बाज़ार", "रेट",
+    "ಬೆಲೆ", "ಧಾರಣೆ", "ಮಾರಾಟ", "ಮಾರಬೇಕ", "ಮಾರಲು", "ಮಾರುಕಟ್ಟೆ", "ಮಂಡಿ",
+]
+TTL_MANDI_ANALYSIS = 30 * 60      # a repeated analysis (same place, crop, language and data) returns the cached one
 
 # Crop words a farmer may type -> fragments of Agmarknet commodity names (case-insensitive).
 # "exclude": commodity names containing these are other products (e.g. dal). Longest word wins,

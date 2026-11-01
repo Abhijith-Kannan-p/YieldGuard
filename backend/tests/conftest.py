@@ -18,6 +18,7 @@ def load_fixture(name: str):
 def _clear_cache(tmp_path, monkeypatch):
     from app import baseline, config, http, sessions, today
     from app.cache import FileCache
+    from app import mandi_analysis
     from app.sources import mandi, metno, soil
 
     cache.clear()
@@ -25,6 +26,7 @@ def _clear_cache(tmp_path, monkeypatch):
     sessions.clear()
     metno.clear()
     mandi.clear()
+    mandi_analysis.clear()
     # Tests never use the real data.gov.in key from .env; mandi tests set their own.
     monkeypatch.setattr(config, "DATAGOV_API_KEY", "")
     monkeypatch.setattr(config, "MANDI_SAVED_REPO", "")  # no test reaches GitHub; saved-copy tests set their own
