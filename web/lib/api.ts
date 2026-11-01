@@ -1,5 +1,7 @@
 import type { BrowserForecast } from "./forecastClient";
-import type { AdviceResponse, FollowupResponse, PlaceSuggestion, TodaySummary } from "./types";
+import type {
+  AdviceResponse, FollowupResponse, MandiCropsResponse, MandiPageResponse, PlaceSuggestion, TodaySummary,
+} from "./types";
 
 // In production the page is served by the FastAPI backend, so API calls are same-origin.
 // During `next dev` (port 3000) the backend runs separately on port 8000.
@@ -68,6 +70,24 @@ export function fetchToday(where: { location?: string; lat?: number; lon?: numbe
   }
   if (where.location) p.set("location", where.location);
   return getJson<TodaySummary>(`/api/today?${p}`, signal);
+}
+
+/** Crops reported in the current Karnataka mandi snapshot (for the crop picker). */
+export function fetchMandiCrops(signal: AbortSignal): Promise<MandiCropsResponse> {
+  return getJson<MandiCropsResponse>("/api/mandi/crops", signal);
+}
+
+/** Today's reported price at the nearest market for one crop (exact Agmarknet name), and nearby markets. */
+export function fetchMandi(
+  where: { location?: string; lat?: number; lon?: number }, crop: string, signal: AbortSignal,
+): Promise<MandiPageResponse> {
+  const p = new URLSearchParams({ crop });
+  if (where.lat != null && where.lon != null) {
+    p.set("lat", String(where.lat));
+    p.set("lon", String(where.lon));
+  }
+  if (where.location) p.set("location", where.location);
+  return getJson<MandiPageResponse>(`/api/mandi?${p}`, signal);
 }
 
 export async function searchPlaces(q: string, signal: AbortSignal): Promise<PlaceSuggestion[]> {

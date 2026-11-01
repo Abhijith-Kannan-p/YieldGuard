@@ -213,15 +213,53 @@ export interface MandiRecord {
 
 export interface MandiResult {
   status: "found" | "latest" | "no_nearby_market" | "incomplete" | "no_market" | "no_data" | "unknown";
-  crop: string;
+  crop: string | null;
   crop_word: string;
+  commodity: string | null; // exact Agmarknet name on the Mandi page; null on the advice page
   today: string;
   snapshot_date: string | null;
   market: { name: string; district: string; distance_km: number; lat: number; lon: number; located_as: string | null } | null;
   records: MandiRecord[];
+  nearby: MandiNearby[]; // other markets within max_distance_km, nearest first
   nearest_beyond: { market: string; district: string; distance_km: number } | null;
   markets_reporting: number;
   markets_not_located: number;
   max_distance_km: number;
   note: string | null;
+}
+
+export interface MandiNearby {
+  market: string;
+  district: string;
+  distance_km: number;
+  located_as: string | null;
+  records: MandiRecord[];
+}
+
+export type LangLabels = Record<Lang, string>;
+
+export interface MandiCrop {
+  commodity: string; // exact Agmarknet name, sent back as ?crop=
+  crop: string | null; // CROP_ALIASES key, if any
+  labels: LangLabels;
+  varieties: string[];
+  markets: number;
+}
+
+export interface MandiCropsResponse {
+  status: "ok" | "no_data" | "unavailable";
+  crops: MandiCrop[];
+  snapshot_date: string | null;
+  today: string;
+  computed_at: string;
+  source: SourceView;
+  attribution: string;
+}
+
+export interface MandiPageResponse extends MandiResult {
+  labels: LangLabels;
+  location: { name: string; district: string | null; lat: number; lon: number; source: string };
+  computed_at: string;
+  source: SourceView;
+  attribution: string;
 }

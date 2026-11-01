@@ -1,0 +1,414 @@
+{
+ "status": "ok",
+ "crops": [
+  {
+   "commodity": "Beans",
+   "crop": null,
+   "labels": {
+    "en": "Beans",
+    "hi": "Beans",
+    "kn": "Beans"
+   },
+   "varieties": [
+    "Beans (Whole)"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Beetroot",
+   "crop": null,
+   "labels": {
+    "en": "Beetroot",
+    "hi": "Beetroot",
+    "kn": "Beetroot"
+   },
+   "varieties": [
+    "Beetroot"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Bengal Gram(Gram)(Whole)",
+   "crop": "bengal_gram",
+   "labels": {
+    "en": "Bengal Gram(Gram)(Whole)",
+    "hi": "चना",
+    "kn": "ಕಡಲೆ"
+   },
+   "varieties": [
+    "Jawari/Local"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Bitter gourd",
+   "crop": null,
+   "labels": {
+    "en": "Bitter gourd",
+    "hi": "Bitter gourd",
+    "kn": "Bitter gourd"
+   },
+   "varieties": [
+    "Bitter Gourd"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Bottle gourd",
+   "crop": null,
+   "labels": {
+    "en": "Bottle gourd",
+    "hi": "Bottle gourd",
+    "kn": "Bottle gourd"
+   },
+   "varieties": [
+    "Bottle Gourd"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Brinjal",
+   "crop": null,
+   "labels": {
+    "en": "Brinjal",
+    "hi": "Brinjal",
+    "kn": "Brinjal"
+   },
+   "varieties": [
+    "Brinjal",
+    "Round"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Cabbage",
+   "crop": null,
+   "labels": {
+    "en": "Cabbage",
+    "hi": "Cabbage",
+    "kn": "Cabbage"
+   },
+   "varieties": [
+    "Cabbage"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Capsicum",
+   "crop": null,
+   "labels": {
+    "en": "Capsicum",
+    "hi": "Capsicum",
+    "kn": "Capsicum"
+   },
+   "varieties": [
+    "Capsicum"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Carrot",
+   "crop": null,
+   "labels": {
+    "en": "Carrot",
+    "hi": "Carrot",
+    "kn": "Carrot"
+   },
+   "varieties": [
+    "Carrot"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Cauliflower",
+   "crop": null,
+   "labels": {
+    "en": "Cauliflower",
+    "hi": "Cauliflower",
+    "kn": "Cauliflower"
+   },
+   "varieties": [
+    "Cauliflower"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Chilly Capsicum",
+   "crop": null,
+   "labels": {
+    "en": "Chilly Capsicum",
+    "hi": "Chilly Capsicum",
+    "kn": "Chilly Capsicum"
+   },
+   "varieties": [
+    "Chilly Capsicum"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Cucumbar(Kheera)",
+   "crop": null,
+   "labels": {
+    "en": "Cucumbar(Kheera)",
+    "hi": "Cucumbar(Kheera)",
+    "kn": "Cucumbar(Kheera)"
+   },
+   "varieties": [
+    "Cucumbar"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Drumstick",
+   "crop": null,
+   "labels": {
+    "en": "Drumstick",
+    "hi": "Drumstick",
+    "kn": "Drumstick"
+   },
+   "varieties": [
+    "Drumstick"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Ginger(Green)",
+   "crop": null,
+   "labels": {
+    "en": "Ginger(Green)",
+    "hi": "Ginger(Green)",
+    "kn": "Ginger(Green)"
+   },
+   "varieties": [
+    "Green Ginger"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Green Chilli",
+   "crop": null,
+   "labels": {
+    "en": "Green Chilli",
+    "hi": "Green Chilli",
+    "kn": "Green Chilli"
+   },
+   "varieties": [
+    "Green Chilly"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Ground Nut Seed",
+   "crop": "groundnut",
+   "labels": {
+    "en": "Ground Nut Seed",
+    "hi": "मूंगफली",
+    "kn": "ಶೇಂಗಾ"
+   },
+   "varieties": [
+    "Ground Nut Seed"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Jowar(Sorghum)",
+   "crop": "jowar",
+   "labels": {
+    "en": "Jowar(Sorghum)",
+    "hi": "ज्वार",
+    "kn": "ಜೋಳ"
+   },
+   "varieties": [
+    "Jowar ( White)"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Knool Khol",
+   "crop": null,
+   "labels": {
+    "en": "Knool Khol",
+    "hi": "Knool Khol",
+    "kn": "Knool Khol"
+   },
+   "varieties": [
+    "Knool Khol"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Ladies Finger",
+   "crop": null,
+   "labels": {
+    "en": "Ladies Finger",
+    "hi": "Ladies Finger",
+    "kn": "Ladies Finger"
+   },
+   "varieties": [
+    "Ladies Finger"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Maize",
+   "crop": "maize",
+   "labels": {
+    "en": "Maize",
+    "hi": "मक्का",
+    "kn": "ಮೆಕ್ಕೆಜೋಳ"
+   },
+   "varieties": [
+    "Local"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Onion",
+   "crop": "onion",
+   "labels": {
+    "en": "Onion",
+    "hi": "प्याज",
+    "kn": "ಈರುಳ್ಳಿ"
+   },
+   "varieties": [
+    "Local"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Paddy(Common)",
+   "crop": "paddy",
+   "labels": {
+    "en": "Paddy(Common)",
+    "hi": "धान",
+    "kn": "ಭತ್ತ"
+   },
+   "varieties": [
+    "Paddy"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Raddish",
+   "crop": null,
+   "labels": {
+    "en": "Raddish",
+    "hi": "Raddish",
+    "kn": "Raddish"
+   },
+   "varieties": [
+    "Raddish"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Ragi(Finger Millet)",
+   "crop": "ragi",
+   "labels": {
+    "en": "Ragi(Finger Millet)",
+    "hi": "रागी",
+    "kn": "ರಾಗಿ"
+   },
+   "varieties": [
+    "Local"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Ridgeguard(Tori)",
+   "crop": null,
+   "labels": {
+    "en": "Ridgeguard(Tori)",
+    "hi": "Ridgeguard(Tori)",
+    "kn": "Ridgeguard(Tori)"
+   },
+   "varieties": [
+    "Ridgeguard(Tori)"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Seemebadnekai",
+   "crop": null,
+   "labels": {
+    "en": "Seemebadnekai",
+    "hi": "Seemebadnekai",
+    "kn": "Seemebadnekai"
+   },
+   "varieties": [
+    "Seemebadanekai"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Snakeguard",
+   "crop": null,
+   "labels": {
+    "en": "Snakeguard",
+    "hi": "Snakeguard",
+    "kn": "Snakeguard"
+   },
+   "varieties": [
+    "Snakeguard"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Soyabean",
+   "crop": "soyabean",
+   "labels": {
+    "en": "Soyabean",
+    "hi": "सोयाबीन",
+    "kn": "ಸೋಯಾಬೀನ್"
+   },
+   "varieties": [
+    "Soyabeen"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Thogrikai",
+   "crop": null,
+   "labels": {
+    "en": "Thogrikai",
+    "hi": "Thogrikai",
+    "kn": "Thogrikai"
+   },
+   "varieties": [
+    "Thogarikai"
+   ],
+   "markets": 1
+  },
+  {
+   "commodity": "Tomato",
+   "crop": "tomato",
+   "labels": {
+    "en": "Tomato",
+    "hi": "टमाटर",
+    "kn": "ಟೊಮೆಟೊ"
+   },
+   "varieties": [
+    "Tomato"
+   ],
+   "markets": 1
+  }
+ ],
+ "snapshot_date": "2026-11-01",
+ "today": "2026-11-01",
+ "computed_at": "2026-11-01T10:00:00+05:30",
+ "source": {
+  "id": "mandi",
+  "name": "Agmarknet mandi prices (data.gov.in)",
+  "url": "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070",
+  "status": "ok",
+  "fetched_at": "2026-11-01T18:24:49+05:30",
+  "cached": false,
+  "stale": false,
+  "fallback_for": null,
+  "note": null,
+  "age_minutes": 0,
+  "error": null,
+  "attribution": "Mandi prices: Agmarknet via data.gov.in (Government Open Data License - India)"
+ },
+ "attribution": "Mandi prices: Agmarknet via data.gov.in (Government Open Data License - India)"
+}

@@ -22,12 +22,20 @@ export default function Landing() {
               Ask a farming question in English, Hindi or Kannada and get advice for your village, built from live weather,
               rainfall and soil data, with the source and time of every number.
             </p>
-            <Link
-              href="/advice/"
-              className="mt-8 inline-flex min-h-12 items-center rounded-md bg-primary px-6 text-lg font-semibold text-primary-foreground shadow-sm transition [text-shadow:none] hover:bg-accent hover:text-accent-foreground"
-            >
-              Get advice
-            </Link>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link
+                href="/advice/"
+                className="inline-flex min-h-12 items-center rounded-md bg-primary px-6 text-lg font-semibold text-primary-foreground shadow-sm transition [text-shadow:none] hover:bg-accent hover:text-accent-foreground"
+              >
+                Get advice
+              </Link>
+              <Link
+                href="/mandi/"
+                className="inline-flex min-h-12 items-center rounded-md border-2 border-white/80 px-6 text-lg font-semibold text-white transition [text-shadow:none] hover:bg-white/15"
+              >
+                Mandi prices
+              </Link>
+            </div>
           </div>
         </div>
       </HoarfrostPane>

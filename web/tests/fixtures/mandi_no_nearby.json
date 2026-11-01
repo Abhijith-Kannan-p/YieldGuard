@@ -1,0 +1,48 @@
+{
+ "status": "no_nearby_market",
+ "crop": "tomato",
+ "crop_word": "Tomato",
+ "commodity": "Tomato",
+ "today": "2026-11-01",
+ "snapshot_date": "2026-11-01",
+ "market": null,
+ "records": [],
+ "nearby": [],
+ "nearest_beyond": {
+  "market": "Ramanagara APMC",
+  "district": "Bengaluru South",
+  "distance_km": 390.9
+ },
+ "markets_reporting": 1,
+ "markets_not_located": 0,
+ "max_distance_km": 125.0,
+ "note": "no market within 125 km reports Tomato today",
+ "labels": {
+  "en": "Tomato",
+  "hi": "टमाटर",
+  "kn": "ಟೊಮೆಟೊ"
+ },
+ "location": {
+  "name": "Dharwad",
+  "district": "Dharwad district",
+  "lat": 15.46005,
+  "lon": 75.00778,
+  "source": "Open-Meteo Geocoding API"
+ },
+ "computed_at": "2026-11-01T10:00:00+05:30",
+ "source": {
+  "id": "mandi",
+  "name": "Agmarknet mandi prices (data.gov.in)",
+  "url": "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070",
+  "status": "ok",
+  "fetched_at": "2026-11-01T18:24:49+05:30",
+  "cached": false,
+  "stale": false,
+  "fallback_for": null,
+  "note": null,
+  "age_minutes": 0,
+  "error": null,
+  "attribution": "Mandi prices: Agmarknet via data.gov.in (Government Open Data License - India)"
+ },
+ "attribution": "Mandi prices: Agmarknet via data.gov.in (Government Open Data License - India)"
+}

@@ -1,23 +1,24 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import AdviceResult from "./AdviceResult";
 import AttributionFooter from "./AttributionFooter";
 import FollowUps from "./FollowUps";
-import { PinIcon } from "./Icons";
+import LocationPicker, { type PickedPlace } from "./LocationPicker";
 import MicButton from "./MicButton";
 import SavedFields from "./SavedFields";
 import ShareBar from "./ShareBar";
+import SiteNav from "./SiteNav";
 import { ApiError, postAdvice, REQUEST_TIMEOUT_MS, searchPlaces } from "@/lib/api";
 import { fetchForecast, fetchPastRain, SOURCE_NAME, type BrowserForecast } from "@/lib/forecastClient";
 import { fmtAge, fmtFetched, minutesSince } from "@/lib/format";
 import { fill, I18N, type Labels } from "@/lib/i18n";
+import { readAdviceLink } from "@/lib/links";
 import {
   fieldId, loadFields, loadLastAnswer, loadSelectedField, MAX_FIELDS, placeKey, saveFields, saveLastAnswer,
   saveSelectedField, type LastAnswer, type SavedField,
 } from "@/lib/storage";
-import type { AdviceResponse, Lang, PlaceSuggestion } from "@/lib/types";
+import type { AdviceResponse, Lang } from "@/lib/types";
 import * as speech from "@/lib/speech";
 
 type LangChoice = "auto" | Lang;
@@ -76,9 +77,7 @@ export default function AdviceApp() {
   const L = I18N[uiLang];
 
   const [location, setLocation] = useState("Dharwad");
-  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
-  const [coords, setCoords] = useState<{ lat: number; lon: number; name: string } | null>(null);
-  const [locHint, setLocHint] = useState("");
+  const [coords, setCoords] = useState<PickedPlace | null>(null);
   const [question, setQuestion] = useState("");
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -98,8 +97,6 @@ export default function AdviceApp() {
   const autoSubmit = useRef(false);
   const lastAsk = useRef<{ where: Where; q: string } | null>(null); // for "Refresh data"
 
-  const labelFor = (p: PlaceSuggestion) => (p.district ? `${p.name} (${p.district})` : p.name);
-
   // ---- browser-only setup: saved fields, voice list, shareable links --------
   useEffect(() => {
     // The page is prerendered as static HTML; device storage and the query string are only
@@ -115,19 +112,19 @@ export default function AdviceApp() {
       setCoords({ lat: field.lat, lon: field.lon, name: field.name });
     }
 
-    // /advice/?location=Hubballi&q=Can+I+spray&lang=kn fills the form and asks.
-    const qs = new URLSearchParams(window.location.search);
-    const lang = qs.get("lang");
-    if (isLang(lang)) {
-      setLangChoice(lang);
-      setUiLang(lang);
+    // /advice/?location=Hubballi&q=Can+I+spray&lang=kn fills the form and asks; &lat=..&lon=.. keep coordinates.
+    const link = readAdviceLink(window.location.search);
+    if (link.lang) {
+      setLangChoice(link.lang);
+      setUiLang(link.lang);
     }
-    if (qs.get("location")) {
-      setLocation(qs.get("location")!);
-      setCoords(null);
+    if (link.location || link.coords) {
+      const name = link.location ?? `${link.coords!.lat}, ${link.coords!.lon}`;
+      setLocation(name);
+      setCoords(link.coords ? { ...link.coords, name } : null);
       setSelectedId(null);
     }
-    const q = qs.get("q") || qs.get("question");
+    const q = link.question;
     if (q) {
       setQuestion(q);
       autoSubmit.current = true;
@@ -145,45 +142,11 @@ export default function AdviceApp() {
     document.documentElement.lang = uiLang;
   }, [uiLang]);
 
-  // ---- location suggestions (debounced, optional) -------------------------
-  useEffect(() => {
-    const q = location.trim();
-    if (q.length < 2 || coords) return;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => {
-      searchPlaces(q, ctrl.signal)
-        .then((r) => setSuggestions(r.slice(0, 8)))
-        .catch(() => {}); // suggestions are a convenience; the main request reports real errors
-    }, 350);
-    return () => {
-      clearTimeout(timer);
-      ctrl.abort();
-    };
-  }, [location, coords]);
-
-  const onLocationChange = (value: string) => {
+  // Typing, picking a suggestion or "Use my location": a new place that is not a saved field.
+  const onLocationChange = (value: string, picked: PickedPlace | null) => {
     setLocation(value);
     setSelectedId(null);
-    const picked = suggestions.find((p) => labelFor(p) === value);
-    setCoords(picked ? { lat: picked.lat, lon: picked.lon, name: picked.name } : null);
-    setLocHint(picked ? `${picked.lat.toFixed(3)}, ${picked.lon.toFixed(3)}` : "");
-  };
-
-  const useMyLocation = () => {
-    if (!navigator.geolocation) return;
-    setLocHint("…");
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = Number(pos.coords.latitude.toFixed(4));
-        const lon = Number(pos.coords.longitude.toFixed(4));
-        setCoords({ lat, lon, name: "My location" });
-        setLocation(`My location (${lat}, ${lon})`);
-        setSelectedId(null);
-        setLocHint("");
-      },
-      () => setLocHint(L.locDenied),
-      { timeout: 10_000 },
-    );
+    setCoords(picked);
   };
 
   const onSpokenQuestion = (text: string, spoken: Lang | null) => {
@@ -279,7 +242,6 @@ export default function AdviceApp() {
     saveSelectedField(f.id);
     setLocation(f.name);
     setCoords({ lat: f.lat, lon: f.lon, name: f.name });
-    setLocHint("");
     if (question.trim()) void ask({ name: f.name, lat: f.lat, lon: f.lon }, question.trim());
   };
 
@@ -315,10 +277,8 @@ export default function AdviceApp() {
     <div className="flex min-h-screen flex-col">
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="inline-flex min-h-11 items-center text-muted-foreground hover:text-foreground">
-              ← {L.back}
-            </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <SiteNav current="/advice/" L={L} />
             <div>
               <h1 className="text-xl font-bold leading-tight">
                 <span className="text-primary">YieldGuard</span> · {L.title}
@@ -347,31 +307,7 @@ export default function AdviceApp() {
           {!online && <div className="rounded-md border border-warning bg-warning-soft p-3">{L.offline}</div>}
 
           <form ref={formRef} onSubmit={submit} className="rounded-md border border-border bg-card p-4" autoComplete="off">
-            <label htmlFor="location" className="mb-1.5 block font-semibold">{L.location}</label>
-            <div className="flex gap-2">
-              <input
-                id="location"
-                list="places"
-                value={location}
-                onChange={(e) => onLocationChange(e.target.value)}
-                required
-                maxLength={80}
-                className="min-h-11 w-full min-w-0 rounded-md border border-border bg-background px-3"
-              />
-              <button
-                type="button"
-                onClick={useMyLocation}
-                title={L.useLocation}
-                aria-label={L.useLocation}
-                className="min-h-11 min-w-11 rounded-md border border-border bg-background px-3 text-muted-foreground hover:border-primary hover:text-primary"
-              >
-                <PinIcon />
-              </button>
-            </div>
-            <datalist id="places">
-              {suggestions.map((p) => <option key={`${p.lat},${p.lon}`} value={labelFor(p)} />)}
-            </datalist>
-            {locHint && <small className="mt-1 block text-sm text-muted-foreground">{locHint}</small>}
+            <LocationPicker value={location} hasCoords={!!coords} onChange={onLocationChange} L={L} />
 
             <div className="mb-1.5 mt-4 flex flex-wrap items-start justify-between gap-2">
               <label htmlFor="question" className="pt-2 font-semibold">{L.question}</label>

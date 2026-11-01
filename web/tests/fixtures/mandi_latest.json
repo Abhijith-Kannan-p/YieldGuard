@@ -1,0 +1,63 @@
+{
+ "status": "latest",
+ "crop": "maize",
+ "crop_word": "Maize",
+ "commodity": "Maize",
+ "today": "2026-11-02",
+ "snapshot_date": "2026-11-01",
+ "market": {
+  "name": "Ranebennur APMC",
+  "district": "Haveri",
+  "distance_km": 114.6,
+  "lat": 14.62239,
+  "lon": 75.62951,
+  "located_as": "Ranebennur"
+ },
+ "records": [
+  {
+   "state": "Karnataka",
+   "district": "Haveri",
+   "market": "Ranebennur APMC",
+   "commodity": "Maize",
+   "variety": "Local",
+   "arrival_date": "2026-11-01",
+   "min_price": 2910.0,
+   "max_price": 3540.0,
+   "modal_price": 3202.0
+  }
+ ],
+ "nearby": [],
+ "nearest_beyond": null,
+ "markets_reporting": 1,
+ "markets_not_located": 0,
+ "max_distance_km": 125.0,
+ "note": null,
+ "labels": {
+  "en": "Maize",
+  "hi": "मक्का",
+  "kn": "ಮೆಕ್ಕೆಜೋಳ"
+ },
+ "location": {
+  "name": "Dharwad",
+  "district": "Dharwad district",
+  "lat": 15.46005,
+  "lon": 75.00778,
+  "source": "Open-Meteo Geocoding API"
+ },
+ "computed_at": "2026-11-02T10:00:00+05:30",
+ "source": {
+  "id": "mandi",
+  "name": "Agmarknet mandi prices (data.gov.in)",
+  "url": "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070",
+  "status": "ok",
+  "fetched_at": "2026-11-01T18:24:49+05:30",
+  "cached": false,
+  "stale": false,
+  "fallback_for": null,
+  "note": null,
+  "age_minutes": 935,
+  "error": null,
+  "attribution": "Mandi prices: Agmarknet via data.gov.in (Government Open Data License - India)"
+ },
+ "attribution": "Mandi prices: Agmarknet via data.gov.in (Government Open Data License - India)"
+}
