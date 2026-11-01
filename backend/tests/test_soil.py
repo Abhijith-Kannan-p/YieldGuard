@@ -69,6 +69,9 @@ async def test_soilgrids_503_uses_saved_copy_with_its_fetch_time(monkeypatch):
 
 
 async def test_soilgrids_503_without_saved_copy_says_temporarily_unavailable(monkeypatch):
+    import httpx
+
+    from app import http
     from app.http import FetchError
     from app.sources import soil
 
@@ -76,6 +79,8 @@ async def test_soilgrids_503_without_saved_copy_says_temporarily_unavailable(mon
         raise FetchError("HTTP 503")
 
     monkeypatch.setattr(soil, "get_json", down)
+    # The WCS fallback (tests/test_soil_wcs.py) is down too.
+    monkeypatch.setattr(http, "_client", httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(503))))
     res = await soil.fetch(12.3, 76.6)
     assert not res.ok and res.error == "soil data is temporarily unavailable (HTTP 503)"
 

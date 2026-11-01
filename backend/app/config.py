@@ -22,6 +22,9 @@ GEOCODING_URL = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
 SOILGRIDS_URL = "https://rest.isric.org/soilgrids/v2.0/properties/query"
+# Same SoilGrids maps through ISRIC's WCS map service: used when the REST API above fails (it is often 503).
+SOILGRIDS_WCS_URL = "https://maps.isric.org/mapserv"
+SOIL_WCS_HALF_WINDOW_DEG = 0.025  # read a ~5 km square around the point; masked (urban) pixels -> nearest valid one
 
 # Fallbacks (see sources/metno.py and baseline.py)
 METNO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"

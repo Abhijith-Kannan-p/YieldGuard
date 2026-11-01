@@ -5,9 +5,10 @@ We divide by the d_factor reported in the response itself to get the target
 units: clay/sand in %, pH in pH units, SOC in g/kg.
 
 Successful responses are cached per coordinate pair (rounded to 2 decimals) for
-TTL_SOIL and saved to SOIL_CACHE_FILE. If SoilGrids fails (for example HTTP 503),
-the last saved response is used and labelled with its fetch time; without one,
-the answer says soil data is temporarily unavailable.
+TTL_SOIL and saved to SOIL_CACHE_FILE. If the REST API fails (it is often HTTP 503),
+the same SoilGrids maps are read through ISRIC's WCS map service (sources/soil_wcs.py);
+if that fails too, the last saved response is used and labelled with its fetch time;
+without one, the answer says soil data is temporarily unavailable.
 """
 import math
 import time
@@ -15,6 +16,7 @@ import time
 from .. import config
 from ..cache import FileCache
 from ..http import FetchError, SourceResult, cached_fetch, coord_key, get_json
+from ..timeutil import now_local
 
 NAME = "ISRIC SoilGrids v2.0"
 NO_VALUES = "no soil values at this point or nearby (area may be urban or water)"
@@ -80,8 +82,24 @@ async def fetch(lat: float, lon: float) -> SourceResult:
                         "offset_km": distance_km(lat, lon, qlat, qlon)}
         raise FetchError(NO_VALUES)
 
+    async def wcs_fallback(err: FetchError) -> SourceResult | None:
+        """REST failed (not 'no values here': the maps are the same, so WCS would find none either).
+        A saved REST copy young enough to be served (STALE_MAX_AGE_S) is used first: soil does not change,
+        and it costs no request."""
+        if str(err) == NO_VALUES:
+            return None
+        old = soil_store.get_stale(f"soil:{coord_key(lat, lon)}")
+        if old is not None and (now_local() - old.fetched_at).total_seconds() <= config.STALE_MAX_AGE_S["soil"]:
+            return None
+        from . import soil_wcs
+        res = await soil_wcs.fetch(lat, lon)
+        if res.ok:
+            res.error = f"SoilGrids REST API failed ({err}); using the same SoilGrids maps from ISRIC's WCS map service."
+        return res
+
     res = await cached_fetch("soil", NAME, config.SOILGRIDS_URL,
-                             f"soil:{coord_key(lat, lon)}", config.TTL_SOIL, load, store=soil_store)
+                             f"soil:{coord_key(lat, lon)}", config.TTL_SOIL, load, store=soil_store,
+                             fallback=wcs_fallback)
     if not res.ok and res.error != NO_VALUES:
         res.error = f"soil data is temporarily unavailable ({res.error})"
     return res
