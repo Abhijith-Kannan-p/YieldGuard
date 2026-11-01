@@ -16,6 +16,8 @@ services:
         sync: false
       - key: METNO_CONTACT     # email or URL for MET Norway's User-Agent; set in the dashboard
         sync: false
+      - key: DATAGOV_API_KEY   # data.gov.in key for mandi prices; set in the dashboard
+        sync: false
       - key: NODE_VERSION
         value: 22.12.0
       - key: GEMINI_MODEL

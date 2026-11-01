@@ -5,7 +5,7 @@ import logging
 import time
 import uuid
 
-from . import baseline, config, evidence, fallback, grounding, language, llm, prompts
+from . import baseline, config, crops, evidence, fallback, grounding, language, llm, prompts
 from .http import SourceResult
 from .rules import deficit as deficit_rule
 from .rules import fertiliser as fertiliser_rule
@@ -14,7 +14,7 @@ from .rules import heavy_rain as heavy_rule
 from .rules import irrigation as irrigation_rule
 from .rules import soil as soil_rule
 from .rules import spray as spray_rule
-from .sources import browser_forecast, forecast, geocode, rainfall, soil
+from .sources import browser_forecast, forecast, geocode, mandi, rainfall, soil
 from .timeutil import iso, now_local, parse_local
 
 log = logging.getLogger(__name__)
@@ -28,6 +28,7 @@ SOURCE_ATTRIBUTION = {
     "rain_mtd": config.ATTRIBUTION["open-meteo"],
     "rain_baseline": config.ATTRIBUTION["open-meteo"],
     "soil": config.ATTRIBUTION["soilgrids"],
+    "mandi": config.ATTRIBUTION["datagov"],
     "user": "Coordinates entered by the user",
 }
 
@@ -124,15 +125,19 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     browser_mtd = (_past_rain(client_past_rain, place, win_start, win_end, now)
                    if client_forecast is not None and client_past_rain is not None else None)
     # The page sends a forecast fetched in the visitor's browser; without one the server fetches it.
-    fc, base, soil_src = await asyncio.gather(
+    # Mandi prices only when the question names a crop.
+    crop = crops.find_crop(question)
+    fc, base, soil_src, mandi_src = await asyncio.gather(
         _forecast(client_forecast, place, win_start, now),
         baseline.store.get(place, now.date()),
         soil.fetch(place["lat"], place["lon"]),
+        mandi.fetch() if crop else _nothing(),
     )
     mtd = browser_mtd if browser_mtd is not None else rainfall.month_to_date(fc)
     # Average over the years actually stored (a stored baseline can lag a year until it is rebuilt).
     base_years = (base.data["start_year"], base.data["end_year"]) if base.ok else (y0, y1)
-    sources = [geo, fc, mtd, base, soil_src]
+    mandi_res = await mandi.nearest(place, crop, mandi_src, now.date()) if crop else None
+    sources = [geo, fc, mtd, base, soil_src] + ([mandi_src] if crop else [])
     failed = [{"id": s.source_id, "name": s.name, "error": s.error} for s in sources if not s.ok]
     stale = [s for s in sources if s.ok and s.stale]
     fallbacks = [s for s in sources if s.ok and s.meta.get("fallback_for")]
@@ -148,6 +153,7 @@ async def advise(question: str, location: str | None = None, lat: float | None =
         "irrigation": irrigation_rule.plan(fc.data.get("days", [])) if fc.ok else None,
         "heat": heat_rule.evaluate(fc.data.get("days", [])) if fc.ok else None,
         "fertiliser": fertiliser_rule.evaluate(fc.data["hours"], now) if fc.ok else None,
+        "mandi": mandi_res,
     }
 
     ev = evidence.Evidence()
@@ -160,6 +166,8 @@ async def advise(question: str, location: str | None = None, lat: float | None =
     evidence.add_irrigation(ev, fc, results["irrigation"])
     evidence.add_heat(ev, fc, results["heat"])
     evidence.add_fertiliser(ev, fc, results["fertiliser"])
+    if crop:
+        evidence.add_mandi(ev, mandi_src, mandi_res)
     known = {p["id"] for p in ev.points}
 
     # --- language model (or deterministic fallback) -------------------------
@@ -208,6 +216,7 @@ async def advise(question: str, location: str | None = None, lat: float | None =
         "water_balance": results["irrigation"],
         "heat": results["heat"],
         "fertiliser": results["fertiliser"],
+        "mandi": mandi_res,
         "sources": [_source_view(s, now) for s in sources],
         "data_age": _freshness(sources, now),
         "warnings": [f"{f['name']} unavailable: {f['error']}" for f in failed]
@@ -217,6 +226,10 @@ async def advise(question: str, location: str | None = None, lat: float | None =
                     + ([f"Language model unavailable ({llm_error}); showing a rule-based summary."] if llm_error else []),
         "attribution": sorted(set(config.ATTRIBUTION.values())),
     }
+
+
+async def _nothing() -> None:
+    return None
 
 
 def _series(fc: SourceResult, now) -> dict | None:

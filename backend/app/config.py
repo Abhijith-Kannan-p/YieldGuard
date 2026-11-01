@@ -25,6 +25,9 @@ SOILGRIDS_URL = "https://rest.isric.org/soilgrids/v2.0/properties/query"
 # Same SoilGrids maps through ISRIC's WCS map service: used when the REST API above fails (it is often 503).
 SOILGRIDS_WCS_URL = "https://maps.isric.org/mapserv"
 SOIL_WCS_HALF_WINDOW_DEG = 0.025  # read a ~5 km square around the point; masked (urban) pixels -> nearest valid one
+# Mandi prices: Agmarknet daily prices on data.gov.in (latest day only; the arrival_date filter is ignored).
+MANDI_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
+DATAGOV_API_KEY = os.getenv("DATAGOV_API_KEY", "").strip()
 
 # Fallbacks (see sources/metno.py and baseline.py)
 METNO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
@@ -107,6 +110,7 @@ TTL_FORECAST = 60 * 60        # forecast + recent past rain (one request), per l
 TTL_BASELINE = 30 * 24 * 3600 # rebuild a district's baseline in the background after this
 TTL_SOIL = 7 * 24 * 3600      # per coordinate pair (rounded to 2 decimals); older copies are still used on a 503
 TTL_TODAY = 60 * 60           # landing-page "Today in your field" summary, per location
+TTL_MANDI = 6 * 3600          # all Karnataka mandi prices (one snapshot a day)
 
 # Saved data, loaded at startup so a restart does not refetch it. On hosts with an ephemeral
 # disk (Render's free plan) the files last until the next deploy or restart.
@@ -122,6 +126,7 @@ STALE_MAX_AGE_S = {
     "geocode": 30 * 24 * 3600,
     "forecast": 12 * 3600,      # a 3-day forecast from 12 h ago still covers the next 60 h
     "soil": 90 * 24 * 3600,
+    "mandi": 48 * 3600,          # a saved snapshot still shows its own arrival dates
 }
 
 # ---------------------------------------------------------------------------
@@ -178,6 +183,42 @@ FERTILISER_LOOKAHEAD_H = 48        # hours of forecast checked
 FERTILISER_RAIN_PROB_PCT = 70.0    # any hour above this rain probability -> delay fertiliser
 FERTILISER_RAIN_TOTAL_MM = 40.0    # total forecast rain above this (mm) -> delay fertiliser
 
+# Mandi prices: nearest market within MANDI_MAX_DISTANCE_KM that reports the farmer's crop.
+MANDI_PAGE_SIZE = 1000            # records per data.gov.in request; pages follow "total"
+MANDI_MAX_RECORDS = 5000          # stop paging after this many records
+MANDI_TIMEOUT_S = 30.0            # per request: data.gov.in can be slow
+MANDI_WAIT_S = 10.0               # a question waits at most this long; a slower fetch finishes in the background
+MANDI_RETRY_AFTER_S = 5 * 60      # after a failed fetch, no new attempt for this long
+MANDI_MAX_DISTANCE_KM = 125.0     # markets farther than this are never used
+MANDI_MAX_GEOCODES = 12           # new market-name lookups per question (cached lookups are free)
+MANDI_MAX_VARIETIES = 3           # varieties of the crop shown for the chosen market
+
+# Crop words a farmer may type -> fragments of Agmarknet commodity names (case-insensitive).
+# "exclude": commodity names containing these are other products (e.g. dal). Longest word wins,
+# so "ಮೆಕ್ಕೆಜೋಳ" (maize) is not read as "ಜೋಳ" (jowar).
+CROP_ALIASES = {
+    "jowar": {"words": ["jowar", "sorghum", "ज्वार", "ಜೋಳ", "ಬಿಳಿಜೋಳ"], "commodity": ["jowar", "sorghum"]},
+    "maize": {"words": ["maize", "corn", "मक्का", "ಮೆಕ್ಕೆಜೋಳ", "ಮೆಕ್ಕೆ ಜೋಳ"], "commodity": ["maize"]},
+    "ragi": {"words": ["ragi", "finger millet", "रागी", "मडुआ", "ರಾಗಿ"], "commodity": ["ragi"]},
+    "paddy": {"words": ["paddy", "धान", "ಭತ್ತ"], "commodity": ["paddy"]},
+    "rice": {"words": ["rice", "चावल", "ಅಕ್ಕಿ"], "commodity": ["rice"], "exclude": ["paddy"]},
+    "wheat": {"words": ["wheat", "गेहूं", "गेहूँ", "ಗೋಧಿ"], "commodity": ["wheat"], "exclude": ["atta"]},
+    "bengal_gram": {"words": ["bengal gram", "chana", "chickpea", "gram", "चना", "ಕಡಲೆ"],
+                    "commodity": ["bengal gram"], "exclude": ["dal"]},
+    "tur": {"words": ["tur", "toor", "arhar", "red gram", "pigeon pea", "अरहर", "तुअर", "तूर", "ತೊಗರಿ"],
+            "commodity": ["arhar", "tur"], "exclude": ["dal"]},
+    "green_gram": {"words": ["green gram", "moong", "मूंग", "ಹೆಸರುಕಾಳು"], "commodity": ["green gram"],
+                   "exclude": ["dal"]},
+    "groundnut": {"words": ["groundnut", "ground nut", "peanut", "मूंगफली", "ಶೇಂಗಾ", "ಕಡಲೆಕಾಯಿ"],
+                  "commodity": ["groundnut", "ground nut"]},
+    "soyabean": {"words": ["soyabean", "soybean", "soya", "सोयाबीन", "ಸೋಯಾಬೀನ್", "ಸೋಯಾ"], "commodity": ["soyabean"]},
+    "sunflower": {"words": ["sunflower", "सूरजमुखी", "ಸೂರ್ಯಕಾಂತಿ"], "commodity": ["sunflower"]},
+    "cotton": {"words": ["cotton", "कपास", "ಹತ್ತಿ"], "commodity": ["cotton"]},
+    "onion": {"words": ["onion", "प्याज", "ಈರುಳ್ಳಿ"], "commodity": ["onion"]},
+    "tomato": {"words": ["tomato", "टमाटर", "ಟೊಮೆಟೊ", "ಟೊಮ್ಯಾಟೊ", "ಟೊಮೇಟೊ"], "commodity": ["tomato"]},
+    "potato": {"words": ["potato", "आलू", "ಆಲೂಗಡ್ಡೆ"], "commodity": ["potato"]},
+}
+
 # ---------------------------------------------------------------------------
 # Language model
 # ---------------------------------------------------------------------------
@@ -222,4 +263,5 @@ LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 ATTRIBUTION = {
     "open-meteo": "Weather data by Open-Meteo.com (CC BY 4.0)",
     "soilgrids": "SoilGrids v2.0 by ISRIC - World Soil Information (CC BY 4.0)",
+    "datagov": "Mandi prices: Agmarknet via data.gov.in (Government Open Data License - India)",
 }

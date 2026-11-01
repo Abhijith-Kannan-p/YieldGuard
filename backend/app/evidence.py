@@ -10,6 +10,8 @@ from . import config
 from .http import SourceResult
 from .timeutil import iso, parse_local
 
+UNIT_PER_QUINTAL = "Rs/quintal"
+
 
 class Evidence:
     def __init__(self):
@@ -258,6 +260,53 @@ def add_fertiliser(ev: Evidence, fc: SourceResult, res: dict | None):
     else:
         summary = f"No heavy rain expected in the next {t['lookahead_h']} h; fertiliser can be applied ({rule_text})."
     ev.rule("fertiliser", "Fertiliser timing", res["status"], summary, t, ["fert_max_prob", "fert_rain_total"])
+
+
+def _rs(v: float | None) -> str:
+    return "not given" if v is None else f"Rs {v:g}"
+
+
+def add_mandi(ev: Evidence, src: SourceResult, res: dict):
+    """Price data points for the nearest reporting market, and the mandi_price state for the prompt."""
+    t = {"max_distance_km": res["max_distance_km"]}
+    crop, when = res["crop_word"], res.get("snapshot_date")
+    ids = []
+    if res["status"] in ("found", "latest"):
+        m = res["market"]
+        where = f"{m['name']} ({m['district']})"
+        ev.add("mandi_market", "Nearest market reporting this crop", where, "", src)
+        ev.add("mandi_distance_km", f"Distance to {where}", m["distance_km"], "km", src)
+        ids += ["mandi_market", "mandi_distance_km"]
+        for i, r in enumerate(res["records"], 1):
+            pre = "mandi" if i == 1 else f"mandi_v{i}"
+            name = f"{r['commodity']}{', ' + r['variety'] if r['variety'] else ''}, {m['name']}"
+            for key, label in (("modal_price", "Modal price"), ("min_price", "Minimum price"), ("max_price", "Maximum price")):
+                if r[key] is not None:
+                    ev.add(f"{pre}_{key}", f"{label}, {name}", r[key], UNIT_PER_QUINTAL, src, r["arrival_date"])
+                    ids.append(f"{pre}_{key}")
+        r = res["records"][0]
+        ev.add("mandi_arrival_date", "Arrival date of these prices", r["arrival_date"], "", src, r["arrival_date"])
+        ids.append("mandi_arrival_date")
+        day = "today" if res["status"] == "found" else f"latest available: {r['arrival_date']}, no newer report"
+        summary = (f"{crop}: modal price {_rs(r['modal_price'])} per quintal (min {_rs(r['min_price'])}, max "
+                   f"{_rs(r['max_price'])}) at {where}, {m['distance_km']:g} km away; arrival date {r['arrival_date']}, "
+                   f"{day}. Prices are as reported by the market, in Rs per quintal.")
+    elif res["status"] in ("no_nearby_market", "incomplete"):
+        nb = res.get("nearest_beyond")
+        if nb:
+            ev.add("mandi_nearest_beyond_km", f"Nearest market reporting this crop ({nb['market']}, {nb['district']}), "
+                   f"beyond the limit", nb["distance_km"], "km", src)
+            ids.append("mandi_nearest_beyond_km")
+        summary = f"No price given: {res['note']}."
+        if nb:
+            summary += f" The nearest is {nb['market']} ({nb['district']}), {nb['distance_km']:g} km away, too far to use."
+    elif res["status"] in ("no_market", "no_data"):
+        summary = f"No price given: {res['note']}."
+    else:
+        summary = f"No price given: {res['note'] or 'mandi prices unavailable'}."
+    if when and res["status"] != "unknown":
+        t["snapshot_date"] = when
+    ev.rule("mandi_price", "Mandi price (nearest market)", res["status"], summary, t, ids)
 
 
 def data_lookup(ev: Evidence) -> dict[str, dict]:

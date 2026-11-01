@@ -103,6 +103,7 @@ export interface AdviceResponse {
   water_balance?: WaterBalance | null;
   heat?: HeatResult | null;
   fertiliser?: FertiliserResult | null;
+  mandi?: MandiResult | null; // only when the question names a crop
   fixture_mode?: boolean; // only set by the local-development fixture server (USE_FIXTURES=1)
   data_age?: { source: string; fetched_at: string | null; age_minutes: number | null; cached: boolean; stale: boolean }[];
   attribution: string[];
@@ -197,4 +198,30 @@ export interface FollowupResponse {
   data_age_minutes: number;
   followups_used: number;
   followups_limit: number;
+}
+
+export interface MandiRecord {
+  district: string;
+  market: string;
+  commodity: string;
+  variety: string;
+  arrival_date: string;
+  min_price: number | null;
+  max_price: number | null;
+  modal_price: number; // Rs per quintal
+}
+
+export interface MandiResult {
+  status: "found" | "latest" | "no_nearby_market" | "incomplete" | "no_market" | "no_data" | "unknown";
+  crop: string;
+  crop_word: string;
+  today: string;
+  snapshot_date: string | null;
+  market: { name: string; district: string; distance_km: number; lat: number; lon: number; located_as: string | null } | null;
+  records: MandiRecord[];
+  nearest_beyond: { market: string; district: string; distance_km: number } | null;
+  markets_reporting: number;
+  markets_not_located: number;
+  max_distance_km: number;
+  note: string | null;
 }

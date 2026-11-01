@@ -8,6 +8,7 @@ import re
 
 NUM_RE = re.compile(r"(?<![\w.])(\d+(?:\.\d+)?)(?![\w])")
 ANY_NUM_RE = re.compile(r"\d+(?:\.\d+)?")
+GROUP_COMMA_RE = re.compile(r"(?<=\d),(?=\d{2,3}(?!\d))")
 
 # Kannada and Devanagari digits -> ASCII so the check works in every language.
 _DIGITS = str.maketrans("೦೧೨೩೪೫೬೭೮೯०१२३४५६७८९", "01234567890123456789")
@@ -31,7 +32,8 @@ def allowed_numbers(values) -> set[str]:
 
 
 def unverified_numbers(text: str, allowed: set[str]) -> list[str]:
-    found = NUM_RE.findall(text.translate(_DIGITS))
+    # Digit-group commas (2,350 and Indian 1,02,500) join into one number.
+    found = NUM_RE.findall(GROUP_COMMA_RE.sub("", text.translate(_DIGITS)))
     out = []
     for n in found:
         key = _norm(n)

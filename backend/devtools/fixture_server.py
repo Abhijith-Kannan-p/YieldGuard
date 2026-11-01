@@ -33,7 +33,7 @@ if os.getenv("RENDER") or os.getenv("USE_FIXTURES") != "1":
 from fastapi import Request  # noqa: E402
 
 from app import advisor, baseline, http, main  # noqa: E402
-from app.sources import forecast, geocode, rainfall, soil  # noqa: E402
+from app.sources import forecast, geocode, mandi, rainfall, soil  # noqa: E402
 
 log = logging.getLogger("yieldguard.fixtures")
 
@@ -51,6 +51,7 @@ _GEOCODE = _load("geocode_dharwad.json")
 _FORECAST = _load("forecast_full_dharwad.json")
 _ARCHIVE = _load("archive_dharwad_2000_2025.json")
 _SOIL = _load("soil_dharwad_nearby.json")
+_MANDI = sorted(FIXTURES.glob("mandi_karnataka_*.json"))  # empty until devtools/capture_mandi.py has run
 
 
 def _archive_slice(start: str, end: str) -> dict:
@@ -73,6 +74,8 @@ async def fake_get_json(url: str, params, **_kw):
         result = _archive_slice(p["start_date"], p["end_date"])
     elif url == soil.config.SOILGRIDS_URL:
         result = _SOIL
+    elif url == mandi.config.MANDI_URL and _MANDI:
+        result = _load(_MANDI[-1].name)
     else:
         raise http.FetchError(f"no saved response for {url}")
     log.info("fixture %s %s", url.split("/")[2], {k: p[k] for k in ("name", "start_date", "end_date") if k in p})
@@ -84,12 +87,14 @@ def _frozen_now():
 
 
 # Every module imported these names directly, so patch each module's reference.
-for mod in (geocode, forecast, rainfall, soil):
+for mod in (geocode, forecast, rainfall, soil, mandi):
     mod.get_json = fake_get_json
 for mod in (advisor, http, main):
     mod.now_local = _frozen_now
+if _MANDI and not mandi.config.DATAGOV_API_KEY:
+    mandi.config.DATAGOV_API_KEY = "fixture-mode"  # saved responses only; no request reaches data.gov.in
 for mod, attr in ((geocode, "NAME"), (forecast, "NAME"), (rainfall, "MTD_NAME"), (rainfall, "BASELINE_NAME"),
-                  (baseline, "BASELINE_NAME"), (soil, "NAME")):
+                  (baseline, "BASELINE_NAME"), (soil, "NAME"), (mandi, "NAME")):
     setattr(mod, attr, getattr(mod, attr) + LABEL)
 
 # Saved-response data goes to .cache/, never into the real data/ files.

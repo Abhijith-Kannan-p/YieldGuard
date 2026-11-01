@@ -16,14 +16,17 @@ def load_fixture(name: str):
 
 @pytest.fixture(autouse=True)
 def _clear_cache(tmp_path, monkeypatch):
-    from app import baseline, http, sessions, today
+    from app import baseline, config, http, sessions, today
     from app.cache import FileCache
-    from app.sources import metno, soil
+    from app.sources import mandi, metno, soil
 
     cache.clear()
     today.clear()
     sessions.clear()
     metno.clear()
+    mandi.clear()
+    # Tests never use the real data.gov.in key from .env; mandi tests set their own.
+    monkeypatch.setattr(config, "DATAGOV_API_KEY", "")
     http._backoff_until.clear()
     # Fresh, file-backed stores per test; no background baseline builds unless a test asks for them.
     monkeypatch.setattr(baseline, "store", baseline.BaselineStore(tmp_path / "baselines.json", autostart=False))

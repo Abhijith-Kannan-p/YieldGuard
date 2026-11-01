@@ -24,6 +24,10 @@ T = {
         "irrigate_ok": "Estimated water balance: no irrigation needed in the next {days} days.",
         "heat": "Heat stress expected on {dates} (above {t} °C). Irrigate early morning or evening, avoid afternoon spraying.",
         "fert_delay": "Delay fertiliser: rain is likely in the next {h} hours (up to {prob}% chance), which washes nutrients away.",
+        "mandi_found": "{crop} at {market} ({km} km away): Rs {modal} per quintal (min {lo}, max {hi}), arrival date {date}.",
+        "mandi_latest": "{crop} at {market} ({km} km away), latest available: {date}: Rs {modal} per quintal (min {lo}, max {hi}).",
+        "mandi_no_nearby": "No market within {km} km reports a price for {crop}.",
+        "mandi_none": "No mandi price is available for {crop} right now.",
         "disclaimer": "Please confirm with your local Krishi Vigyan Kendra (KVK) or agriculture officer before acting.",
     },
     "hi": {
@@ -44,6 +48,10 @@ T = {
         "irrigate_ok": "अनुमानित जल संतुलन: अगले {days} दिनों में सिंचाई की ज़रूरत नहीं।",
         "heat": "{dates} को गर्मी का तनाव संभव है ({t} °C से ज़्यादा)। सुबह जल्दी या शाम को सिंचाई करें, दोपहर में छिड़काव न करें।",
         "fert_delay": "खाद डालना टालें: अगले {h} घंटों में बारिश की संभावना है (अधिकतम {prob}%), जिससे पोषक तत्व बह जाते हैं।",
+        "mandi_found": "{market} ({km} किमी दूर) में {crop} का भाव: Rs {modal} प्रति क्विंटल (न्यूनतम {lo}, अधिकतम {hi}), आवक तिथि {date}।",
+        "mandi_latest": "{market} ({km} किमी दूर) में {crop} का नवीनतम उपलब्ध भाव ({date}): Rs {modal} प्रति क्विंटल (न्यूनतम {lo}, अधिकतम {hi})।",
+        "mandi_no_nearby": "{km} किमी के भीतर कोई मंडी {crop} का भाव नहीं बता रही है।",
+        "mandi_none": "{crop} का मंडी भाव अभी उपलब्ध नहीं है।",
         "disclaimer": "कोई भी कदम उठाने से पहले अपने स्थानीय कृषि विज्ञान केंद्र (KVK) या कृषि अधिकारी से पुष्टि करें।",
     },
     "kn": {
@@ -64,6 +72,10 @@ T = {
         "irrigate_ok": "ಅಂದಾಜು ನೀರಿನ ಲೆಕ್ಕ: ಮುಂದಿನ {days} ದಿನಗಳಲ್ಲಿ ನೀರಾವರಿ ಬೇಕಿಲ್ಲ.",
         "heat": "{dates} ರಂದು ಬಿಸಿಲಿನ ಒತ್ತಡ ಸಾಧ್ಯ ({t} °C ಮೀರಿ). ಬೆಳಿಗ್ಗೆ ಬೇಗ ಅಥವಾ ಸಂಜೆ ನೀರು ಹಾಯಿಸಿ, ಮಧ್ಯಾಹ್ನ ಸಿಂಪಡಿಸಬೇಡಿ.",
         "fert_delay": "ಗೊಬ್ಬರ ಹಾಕುವುದನ್ನು ಮುಂದೂಡಿ: ಮುಂದಿನ {h} ಗಂಟೆಗಳಲ್ಲಿ ಮಳೆಯ ಸಾಧ್ಯತೆ ಇದೆ (ಗರಿಷ್ಠ {prob}%), ಇದರಿಂದ ಪೋಷಕಾಂಶ ಕೊಚ್ಚಿಹೋಗುತ್ತದೆ.",
+        "mandi_found": "{market} ({km} ಕಿ.ಮೀ ದೂರ) ಮಾರುಕಟ್ಟೆಯಲ್ಲಿ {crop} ಬೆಲೆ: ಕ್ವಿಂಟಾಲ್‌ಗೆ Rs {modal} (ಕನಿಷ್ಠ {lo}, ಗರಿಷ್ಠ {hi}), ಆವಕ ದಿನಾಂಕ {date}.",
+        "mandi_latest": "{market} ({km} ಕಿ.ಮೀ ದೂರ) ಮಾರುಕಟ್ಟೆಯಲ್ಲಿ {crop} ಇತ್ತೀಚಿನ ಲಭ್ಯ ಬೆಲೆ ({date}): ಕ್ವಿಂಟಾಲ್‌ಗೆ Rs {modal} (ಕನಿಷ್ಠ {lo}, ಗರಿಷ್ಠ {hi}).",
+        "mandi_no_nearby": "{km} ಕಿ.ಮೀ ಒಳಗಿನ ಯಾವುದೇ ಮಾರುಕಟ್ಟೆ {crop} ಬೆಲೆ ವರದಿ ಮಾಡಿಲ್ಲ.",
+        "mandi_none": "{crop} ಮಾರುಕಟ್ಟೆ ಬೆಲೆ ಈಗ ಲಭ್ಯವಿಲ್ಲ.",
         "disclaimer": "ಯಾವುದೇ ಕ್ರಮ ಕೈಗೊಳ್ಳುವ ಮೊದಲು ನಿಮ್ಮ ಸ್ಥಳೀಯ ಕೃಷಿ ವಿಜ್ಞಾನ ಕೇಂದ್ರ (KVK) ಅಥವಾ ಕೃಷಿ ಅಧಿಕಾರಿಯೊಂದಿಗೆ ಖಚಿತಪಡಿಸಿಕೊಳ್ಳಿ.",
     },
 }
@@ -75,6 +87,10 @@ def fmt_time(t: str) -> str:
 
 def fmt_day(d: str) -> str:
     return parse_local(d).strftime("%d/%m")
+
+
+def _price(v: float | None) -> str:
+    return "-" if v is None else f"{v:g}"
 
 
 def compose(lang: str, results: dict, rules: list[dict], failed_sources: list[dict]) -> dict:
@@ -124,6 +140,26 @@ def compose(lang: str, results: dict, rules: list[dict], failed_sources: list[di
     if fe and fe["status"] == "delay":
         recs.append({"text": t["fert_delay"].format(h=fe["thresholds"]["lookahead_h"], prob=fe["max_precip_prob_pct"]),
                      "evidence": ["fert_max_prob", "fert_rain_total"]})
+
+    md = results.get("mandi")
+    if md:
+        ids = ["mandi_modal_price", "mandi_min_price", "mandi_max_price", "mandi_market", "mandi_distance_km",
+               "mandi_arrival_date"]
+        if md["status"] in ("found", "latest"):
+            r, m = md["records"][0], md["market"]
+            s = t[f"mandi_{md['status']}"].format(crop=md["crop_word"], market=m["name"], km=f"{m['distance_km']:g}",
+                                                  modal=_price(r["modal_price"]), lo=_price(r["min_price"]),
+                                                  hi=_price(r["max_price"]), date=r["arrival_date"])
+            recs.insert(0, {"text": s, "evidence": ids})
+            headline.insert(0, s)
+        elif md["status"] == "no_nearby_market":
+            s = t["mandi_no_nearby"].format(km=f"{md['max_distance_km']:g}", crop=md["crop_word"])
+            recs.insert(0, {"text": s, "evidence": ["mandi_nearest_beyond_km"]})
+            headline.insert(0, s)
+        else:
+            s = t["mandi_none"].format(crop=md["crop_word"])
+            recs.insert(0, {"text": s, "evidence": []})
+            headline.insert(0, s)
 
     ir = results.get("irrigation")
     if ir and ir["status"] == "irrigate":
