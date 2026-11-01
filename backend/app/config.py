@@ -28,6 +28,8 @@ SOIL_WCS_HALF_WINDOW_DEG = 0.025  # read a ~5 km square around the point; masked
 # Mandi prices: Agmarknet daily prices on data.gov.in (latest day only; the arrival_date filter is ignored).
 MANDI_URL = "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070"
 DATAGOV_API_KEY = os.getenv("DATAGOV_API_KEY", "").strip()
+# data.gov.in's gateway hangs and returns 502 for a generic client User-Agent; this one gets a quick 200.
+MANDI_HEADERS = {"User-Agent": "YieldGuard/1.0 (hackathon project)", "Accept": "*/*"}
 
 # Fallbacks (see sources/metno.py and baseline.py)
 METNO_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"

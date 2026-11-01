@@ -122,7 +122,7 @@ def _describe(params: Any) -> str:
 
 
 async def get_json(url: str, params: Any, timeout_s: float = config.HTTP_TIMEOUT_S,
-                   retries: int = config.HTTP_RETRIES) -> Any:
+                   retries: int = config.HTTP_RETRIES, headers: dict | None = None) -> Any:
     """GET a JSON document. Retries once on timeouts, connection errors and 5xx.
 
     An Open-Meteo HTTP 429 is never retried: Open-Meteo is put in backoff and every call
@@ -146,7 +146,7 @@ async def get_json(url: str, params: Any, timeout_s: float = config.HTTP_TIMEOUT
             t0 = time.perf_counter()
             status: int | str = "-"
             try:
-                resp = await get_client().get(url, params=params, timeout=timeout_s)
+                resp = await get_client().get(url, params=params, headers=headers, timeout=timeout_s)
                 status = resp.status_code
                 if resp.status_code == 429 and name == "open-meteo":
                     pause = _retry_after_s(resp)

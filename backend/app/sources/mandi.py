@@ -84,7 +84,8 @@ def _params(offset: int) -> dict:
 async def _load() -> dict:
     records, offset, total = [], 0, 0
     while True:
-        payload = await get_json(config.MANDI_URL, _params(offset), timeout_s=config.MANDI_TIMEOUT_S)
+        payload = await get_json(config.MANDI_URL, _params(offset), timeout_s=config.MANDI_TIMEOUT_S,
+                                 headers=config.MANDI_HEADERS)
         if not isinstance(payload, dict) or payload.get("status") == "error" or "records" not in payload:
             msg = payload.get("message") if isinstance(payload, dict) else None
             raise FetchError(f"unexpected response from data.gov.in{': ' + str(msg)[:120] if msg else ''}")

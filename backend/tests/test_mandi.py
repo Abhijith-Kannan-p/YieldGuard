@@ -98,6 +98,25 @@ async def test_slow_api_does_not_hold_the_question_and_failure_pauses_retries(ke
     assert all(p["api-key"] == "test-key" for p in keyed)
 
 
+async def test_request_sends_the_mandi_headers(keyed, monkeypatch):
+    import httpx
+
+    from app import http
+
+    seen = []
+
+    def handler(request: httpx.Request):
+        seen.append(request.headers)
+        return httpx.Response(502)
+
+    monkeypatch.setattr(http, "_client", httpx.AsyncClient(transport=httpx.MockTransport(handler)))
+    await mandi.fetch()
+    await mandi._task
+    assert seen  # get_json retries once on 502, so every attempt is checked
+    for h in seen:
+        assert h["user-agent"] == "YieldGuard/1.0 (hackathon project)" and h["accept"] == "*/*"
+
+
 async def test_api_key_never_in_source_url_or_error(keyed, monkeypatch):
     async def down(url, params, **kw):
         raise FetchError("HTTP 502")

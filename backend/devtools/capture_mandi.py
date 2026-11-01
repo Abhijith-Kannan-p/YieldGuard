@@ -24,7 +24,7 @@ def get(params: dict) -> dict:
     full = {"api-key": config.DATAGOV_API_KEY, "format": "json", **params}
     # Errors are reported by status only: httpx messages include the URL, and the URL holds the key.
     try:
-        r = httpx.get(config.MANDI_URL, params=full, timeout=120)
+        r = httpx.get(config.MANDI_URL, params=full, headers=config.MANDI_HEADERS, timeout=120)
     except httpx.HTTPError as e:
         sys.exit(f"data.gov.in request failed ({type(e).__name__})")
     if r.status_code != 200:
