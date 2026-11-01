@@ -179,11 +179,18 @@ def _today_text(snapshot_date: str | None, today: date) -> str:
     return "today" if snapshot_date == today.isoformat() else f"in the latest data ({snapshot_date})"
 
 
-async def nearest(place: dict, crop: dict, src: SourceResult, today: date) -> dict:
-    """The nearest market within MANDI_MAX_DISTANCE_KM that reports the crop, or an explicit state."""
-    out = {"status": "unknown", "crop": crop["crop"], "crop_word": crop["word"], "today": today.isoformat(),
-           "snapshot_date": None, "market": None, "records": [], "nearest_beyond": None, "markets_reporting": 0,
-           "markets_not_located": 0, "max_distance_km": config.MANDI_MAX_DISTANCE_KM, "note": None}
+def _latest_first(recs: list[dict]) -> list[dict]:
+    return sorted(recs, key=lambda r: r["arrival_date"], reverse=True)[: config.MANDI_MAX_VARIETIES]
+
+
+async def nearest(place: dict, crop: dict, src: SourceResult, today: date, commodity: str | None = None) -> dict:
+    """The nearest market within MANDI_MAX_DISTANCE_KM that reports the crop, or an explicit state.
+    `commodity`: an exact Agmarknet name (Mandi page); without it the crop's aliases are matched (advice).
+    `nearby` lists the other located markets within the limit, nearest first."""
+    out = {"status": "unknown", "crop": crop["crop"], "crop_word": crop["word"], "commodity": commodity,
+           "today": today.isoformat(), "snapshot_date": None, "market": None, "records": [], "nearby": [],
+           "nearest_beyond": None, "markets_reporting": 0, "markets_not_located": 0,
+           "max_distance_km": config.MANDI_MAX_DISTANCE_KM, "note": None}
     if not src.ok:
         out["note"] = f"mandi prices unavailable ({src.error})"
         return out
@@ -193,7 +200,8 @@ async def nearest(place: dict, crop: dict, src: SourceResult, today: date) -> di
         out["status"], out["note"] = "no_data", "data.gov.in returned no Karnataka mandi records"
         return out
 
-    rows = [r for r in data["records"] if crops.matches(crop["crop"], r["commodity"])]
+    rows = [r for r in data["records"]
+            if (r["commodity"] == commodity if commodity else crops.matches(crop["crop"], r["commodity"]))]
     markets: dict[tuple[str, str], list[dict]] = {}
     for r in rows:
         markets.setdefault((r["market"], r["district"]), []).append(r)
@@ -235,10 +243,11 @@ async def nearest(place: dict, crop: dict, src: SourceResult, today: date) -> di
         return out
 
     km, market, district, hit = near[0]
-    recs = sorted(markets[(market, district)], key=lambda r: r["arrival_date"], reverse=True)
     out["market"] = {"name": market, "district": district, "distance_km": km,
                      "lat": hit["lat"], "lon": hit["lon"], "located_as": hit.get("name")}
-    out["records"] = recs[: config.MANDI_MAX_VARIETIES]
+    out["records"] = _latest_first(markets[(market, district)])
+    out["nearby"] = [{"market": m, "district": d, "distance_km": k, "located_as": h.get("name"),
+                      "records": _latest_first(markets[(m, d)])} for k, m, d, h in near[1:]]
     latest = out["records"][0]["arrival_date"]
     out["status"] = "found" if latest == today.isoformat() else "latest"
     return out

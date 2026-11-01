@@ -354,3 +354,18 @@ def test_prices_have_data_ids_and_pass_the_number_check(saved_geocoder, monkeypa
         f"{modal['value']:g}" in r["text"] for r in body["answer"]["recommendations"])
     mandi_row = next(s for s in body["sources"] if s["id"] == "mandi")
     assert mandi_row["status"] == "ok" and mandi_row["attribution"] == config.ATTRIBUTION["datagov"]
+
+
+async def test_request_urls_with_the_key_are_never_logged(keyed, monkeypatch, caplog):
+    import logging
+
+    import httpx
+
+    from app import http, main  # noqa: F401  (main sets the log levels)
+
+    monkeypatch.setattr(http, "_client", httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(502))))
+    with caplog.at_level(logging.INFO):
+        await mandi.fetch()
+        await mandi._task
+    assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING
+    assert "test-key" not in caplog.text and "fetch api.data.gov.in" in caplog.text

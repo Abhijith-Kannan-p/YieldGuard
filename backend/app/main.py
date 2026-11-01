@@ -9,13 +9,16 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import baseline, config, followup, llm, sessions, today
+from . import baseline, config, followup, llm, mandi_page, sessions, today
 from .advisor import AdviceError, advise
 from .http import close_client
 from .sources import geocode
 from .timeutil import iso, now_local
 
 logging.basicConfig(level=config.LOG_LEVEL, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+# httpx logs every request URL at INFO, and data.gov.in URLs carry the API key; app.http logs each call without it.
+for _name in ("httpx", "httpcore"):
+    logging.getLogger(_name).setLevel(logging.WARNING)
 log = logging.getLogger("yieldguard")
 
 # Next.js static export (web/ -> `npm run build` -> web/out), served from this same app.
@@ -147,6 +150,23 @@ async def get_today(
 ):
     """Short live summary for the landing card and saved fields. Cached per location for one hour."""
     return await today.summary(location, lat, lon)
+
+
+@app.get("/api/mandi/crops")
+async def get_mandi_crops():
+    """Commodities in the current Karnataka mandi snapshot (data.gov.in), for the Mandi page's crop picker."""
+    return await mandi_page.crop_list()
+
+
+@app.get("/api/mandi")
+async def get_mandi(
+    crop: str = Query(..., min_length=1, max_length=120, description="Agmarknet commodity name, from /api/mandi/crops"),
+    location: str | None = Query(None, description="Place name in Karnataka (default: Dharwad)"),
+    lat: float | None = Query(None, ge=-90, le=90),
+    lon: float | None = Query(None, ge=-180, le=180),
+):
+    """Today's reported price at the nearest market reporting this crop, and the other markets nearby. No LLM."""
+    return await mandi_page.prices(location, lat, lon, crop.strip())
 
 
 @app.get("/api/locations")

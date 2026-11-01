@@ -7,6 +7,7 @@ Hindi and Kannada words may carry endings (ಜೋಳದ, ಜೋಳಕ್ಕೆ),
 import re
 
 from . import config
+from .language import DEVANAGARI, KANNADA
 
 
 def _pattern(word: str) -> re.Pattern:
@@ -42,3 +43,35 @@ def matches(crop: str, commodity: str) -> bool:
     a = config.CROP_ALIASES[crop]
     name = (commodity or "").lower()
     return any(f in name for f in a["commodity"]) and not any(x in name for x in a.get("exclude", []))
+
+
+def _in_script(word: str, block: tuple[int, int]) -> bool:
+    return any(block[0] <= ord(ch) <= block[1] for ch in word)
+
+
+def alias_for(commodity: str) -> str | None:
+    """The CROP_ALIASES key matching an Agmarknet commodity name, if any."""
+    return next((c for c in config.CROP_ALIASES if matches(c, commodity)), None)
+
+
+def snapshot_crops(records: list[dict]) -> list[dict]:
+    """Distinct commodities in the snapshot, with en/hi/kn labels, varieties and market count."""
+    by_name: dict[str, dict] = {}
+    for r in records:
+        e = by_name.setdefault(r["commodity"], {"varieties": set(), "markets": set()})
+        if r.get("variety"):
+            e["varieties"].add(r["variety"])
+        e["markets"].add((r["market"], r["district"]))
+    aliases = {name: alias_for(name) for name in by_name}
+    shared = {a for a in aliases.values() if a and list(aliases.values()).count(a) > 1}
+    out = []
+    for name in sorted(by_name, key=str.lower):
+        alias = aliases[name]
+        words = config.CROP_ALIASES[alias]["words"] if alias else []
+        labels = {"en": name}
+        for lang, block in (("hi", DEVANAGARI), ("kn", KANNADA)):
+            word = next((w for w in words if _in_script(w, block)), None)
+            labels[lang] = name if word is None else (f"{word} ({name})" if alias in shared else word)
+        out.append({"commodity": name, "crop": alias, "labels": labels,
+                    "varieties": sorted(by_name[name]["varieties"]), "markets": len(by_name[name]["markets"])})
+    return out
