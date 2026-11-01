@@ -22,3 +22,6 @@ Thumbs.db
 
 # Saved live data (rainfall baselines, soil cache), rebuilt automatically
 backend/data/
+
+# Mandi snapshots are committed to the orphan "data" branch by .github/workflows/mandi-snapshot.yml, never to main
+data/mandi/

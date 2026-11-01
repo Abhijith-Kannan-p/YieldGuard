@@ -1,0 +1,64 @@
+# Saves the Karnataka mandi snapshot from data.gov.in every 6 hours to the orphan "data" branch,
+# so the app has a copy that does not depend on Render reaching data.gov.in. main is never changed.
+name: Mandi snapshot
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"  # every 6 hours, UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: mandi-snapshot
+  cancel-in-progress: false  # never cut off a running fetch or push
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DATA_WORKTREE: ${{ runner.temp }}/data-branch
+    steps:
+      - name: Check out main (the script)
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install what the script needs
+        run: pip install "httpx==0.28.1" "python-dotenv==1.2.4"
+
+      - name: Check out the data branch (or start it as an orphan)
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --heads origin data >/dev/null; then
+            git fetch --depth=1 origin +refs/heads/data:refs/remotes/origin/data
+            git worktree add -B data "$DATA_WORKTREE" refs/remotes/origin/data
+          else
+            git worktree add --orphan -b data "$DATA_WORKTREE"
+          fi
+
+      - name: Fetch the snapshot
+        working-directory: backend
+        env:
+          DATAGOV_API_KEY: ${{ secrets.DATAGOV_API_KEY }}
+        run: python -m devtools.fetch_mandi_snapshot --out "$DATA_WORKTREE/data/mandi"
+
+      - name: Commit to the data branch if anything changed
+        working-directory: ${{ runner.temp }}/data-branch
+        run: |
+          set -euo pipefail
+          git add data/mandi
+          if git diff --cached --quiet; then
+            echo "no change to commit"
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "Mandi snapshot: $(git diff --cached --name-only | xargs -n1 basename | tr '\n' ' ')"
+          git push origin data
