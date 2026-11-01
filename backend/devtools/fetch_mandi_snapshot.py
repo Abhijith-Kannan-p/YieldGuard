@@ -118,26 +118,32 @@ def save(name: str, doc: dict, out_dir: Path) -> str:
     return "written"
 
 
-def main(transport: httpx.BaseTransport | None = None, out_dir: Path = OUT_DIR) -> int:
+def snapshot(transport: httpx.BaseTransport | None = None, out_dir: Path = OUT_DIR) -> dict:
+    """Fetch and save; returns {"status", "name", "date", "records", "total"}. Raises SnapshotError with a short cause."""
     for name in ("httpx", "httpcore"):
         logging.getLogger(name).setLevel(logging.WARNING)  # their INFO lines carry the URL, and the URL the key
     if not config.DATAGOV_API_KEY:
-        print("failed: DATAGOV_API_KEY is not set", file=sys.stderr)
-        return 1
+        raise SnapshotError("DATAGOV_API_KEY is not set")
     try:
         with httpx.Client(headers=config.MANDI_HEADERS, timeout=config.MANDI_TIMEOUT_S, transport=transport) as client:
             records, total = fetch_all(client)
         name, doc = build(records, total, now_local())
         status = save(name, doc, out_dir)
+    except SnapshotError:
+        raise
+    except Exception as e:  # anything unexpected: the type only, never the text
+        raise SnapshotError(type(e).__name__) from None
+    return {"status": status, "name": name, "date": name.removesuffix(".json"), "records": len(records), "total": total}
+
+
+def main(transport: httpx.BaseTransport | None = None, out_dir: Path = OUT_DIR) -> int:
+    try:
+        r = snapshot(transport, out_dir)
     except SnapshotError as e:
         print(f"failed: {e}", file=sys.stderr)
         return 1
-    except Exception as e:  # anything unexpected: the type only, never the text
-        print(f"failed: {type(e).__name__}", file=sys.stderr)
-        return 1
-    print(f"{status}: {name} ({len(records)} records, total {total})")
+    print(f"{r['status']}: {r['name']} ({r['records']} records, total {r['total']})")
     return 0
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Save the Karnataka mandi snapshot from data.gov.in.")

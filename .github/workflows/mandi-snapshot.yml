@@ -1,10 +1,9 @@
-# Saves the Karnataka mandi snapshot from data.gov.in every 6 hours to the orphan "data" branch,
-# so the app has a copy that does not depend on Render reaching data.gov.in. main is never changed.
+# Saves the Karnataka mandi snapshot from data.gov.in to the orphan "data" branch. main is never changed.
+# Manual only: data.gov.in refuses connections from cloud IPs (GitHub Actions and Render both get "refused"),
+# so the 6-hourly fetch runs on a home connection: backend/devtools/publish_mandi_snapshot.py.
 name: Mandi snapshot
 
 on:
-  schedule:
-    - cron: "0 */6 * * *"  # every 6 hours, UTC
   workflow_dispatch:
 
 permissions:
