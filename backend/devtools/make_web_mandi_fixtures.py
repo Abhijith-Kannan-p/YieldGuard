@@ -5,6 +5,8 @@
 
 Calls the real /api/mandi endpoints with data.gov.in answered by the saved snapshot (or the saved empty
 response), geocoding answered by the saved Open-Meteo responses, and the clock set to the snapshot day.
+The analysis uses the saved real 1 Nov forecast (posted as the browser would), the clock at its capture time,
+and no language model, so it is the labelled rule-based analysis.
 No network request is made and nothing is written by hand.
 """
 import json
@@ -13,7 +15,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from app import config, mandi_page
+from app import config, llm, mandi_analysis, mandi_page
 from app.http import SourceResult
 from app.main import app
 from app.sources import geocode, mandi
@@ -68,6 +70,18 @@ def main() -> None:
     fresh()
     payload["value"] = _load("mandi_empty.json")
     outputs["mandi_no_data.json"] = c.get("/api/mandi", params={"crop": "Maize", "location": "Dharwad"}).json()
+
+    forecast_name = "forecast_browser_dharwad_2026-11-01.json"
+    captured = datetime.fromisoformat(_load("manifest.json")[forecast_name]["captured_at"])
+    fresh()
+    payload["value"] = _load(snapshot_file.name)
+    llm.config.GEMINI_API_KEY = ""
+    mandi_analysis.clear()
+    mandi_analysis.now_local = mandi.now_local = lambda: captured
+    body = {"crop": "Maize", "location": "Dharwad", "lang": "en",
+            "forecast": {"ok": True, "data": _load(forecast_name), "fetched_at": captured.isoformat(), "cached": False}}
+    outputs["mandi_analysis.json"] = c.post("/api/mandi/analysis", json=body).json()
+    outputs["mandi_analysis_cached.json"] = c.post("/api/mandi/analysis", json=body).json()
     WEB_FIXTURES.mkdir(parents=True, exist_ok=True)
     for name, body in outputs.items():
         (WEB_FIXTURES / name).write_text(json.dumps(body, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")

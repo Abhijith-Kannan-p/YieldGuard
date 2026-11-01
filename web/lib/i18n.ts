@@ -238,6 +238,13 @@ const en = {
   askPriceQuestion: "What is the price of {crop} near me, and should I sell now?",
   mandiSource: "Source",
   mandiRequestFailed: "Could not get mandi prices",
+  analyse: "Analyse this price",
+  analysing: "Analysing…",
+  analysisTitle: "Price analysis",
+  analysisHint: "Get an analysis of this price, the markets nearby and the weather for harvest and transport.",
+  analysisIntro: "Uses only the prices above and the forecast for your place. It is not a price forecast.",
+  analysisCached: "Saved analysis from {time}",
+  analysisFailed: "Could not analyse this price",
   examples: ["Can I spray pesticide tomorrow?", "Is there a drought risk this month?", "Should I irrigate this week?"],
 };
 
@@ -480,6 +487,13 @@ const hi: Labels = {
   askPriceQuestion: "मेरे पास {crop} का भाव क्या है, और क्या मुझे अभी बेचना चाहिए?",
   mandiSource: "स्रोत",
   mandiRequestFailed: "मंडी भाव नहीं मिल सके",
+  analyse: "इस भाव का विश्लेषण करें",
+  analysing: "विश्लेषण हो रहा है…",
+  analysisTitle: "भाव का विश्लेषण",
+  analysisHint: "इस भाव, पास की मंडियों और कटाई व ढुलाई के लिए मौसम का विश्लेषण पाएँ।",
+  analysisIntro: "केवल ऊपर दिए भाव और आपकी जगह के पूर्वानुमान का उपयोग करता है। यह भाव का पूर्वानुमान नहीं है।",
+  analysisCached: "{time} का सहेजा गया विश्लेषण",
+  analysisFailed: "इस भाव का विश्लेषण नहीं हो सका",
   examples: ["क्या मैं कल कीटनाशक छिड़क सकता हूँ?", "क्या इस महीने सूखे का खतरा है?", "क्या इस हफ्ते सिंचाई करनी चाहिए?"],
 };
 
@@ -721,6 +735,13 @@ const kn: Labels = {
   askPriceQuestion: "ನನ್ನ ಹತ್ತಿರ {crop} ಬೆಲೆ ಎಷ್ಟು, ಈಗ ಮಾರಬೇಕೇ?",
   mandiSource: "ಮೂಲ",
   mandiRequestFailed: "ಮಾರುಕಟ್ಟೆ ಬೆಲೆ ಪಡೆಯಲಾಗಲಿಲ್ಲ",
+  analyse: "ಈ ಬೆಲೆಯನ್ನು ವಿಶ್ಲೇಷಿಸಿ",
+  analysing: "ವಿಶ್ಲೇಷಿಸಲಾಗುತ್ತಿದೆ…",
+  analysisTitle: "ಬೆಲೆ ವಿಶ್ಲೇಷಣೆ",
+  analysisHint: "ಈ ಬೆಲೆ, ಹತ್ತಿರದ ಮಾರುಕಟ್ಟೆಗಳು ಮತ್ತು ಕೊಯ್ಲು ಹಾಗೂ ಸಾಗಣೆಗೆ ಹವಾಮಾನದ ವಿಶ್ಲೇಷಣೆ ಪಡೆಯಿರಿ.",
+  analysisIntro: "ಮೇಲಿನ ಬೆಲೆಗಳು ಮತ್ತು ನಿಮ್ಮ ಸ್ಥಳದ ಮುನ್ಸೂಚನೆಯನ್ನು ಮಾತ್ರ ಬಳಸುತ್ತದೆ. ಇದು ಬೆಲೆಯ ಮುನ್ಸೂಚನೆ ಅಲ್ಲ.",
+  analysisCached: "{time} ರ ಉಳಿಸಿದ ವಿಶ್ಲೇಷಣೆ",
+  analysisFailed: "ಈ ಬೆಲೆಯನ್ನು ವಿಶ್ಲೇಷಿಸಲಾಗಲಿಲ್ಲ",
   examples: ["ನಾಳೆ ಕೀಟನಾಶಕ ಸಿಂಪಡಿಸಬಹುದೇ?", "ಈ ತಿಂಗಳು ಬರದ ಅಪಾಯ ಇದೆಯೇ?", "ಈ ವಾರ ನೀರು ಹಾಯಿಸಬೇಕೇ?"],
 };
 

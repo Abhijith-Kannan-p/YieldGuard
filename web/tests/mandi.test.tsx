@@ -1,13 +1,16 @@
-// The Mandi page. Fixtures are real /api/mandi responses generated from the saved backend fixtures by
+// The Mandi page. Fixtures are real /api/mandi and /api/mandi/analysis responses generated from the saved backend fixtures by
 // backend/devtools/make_web_mandi_fixtures.py (data.gov.in snapshot of 1 Nov 2026), never written by hand.
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import AdviceApp from "@/components/AdviceApp";
+import MandiAnalysisPanel, { AnalysisView } from "@/components/MandiAnalysis";
 import MandiView from "@/components/MandiView";
 import SiteNav from "@/components/SiteNav";
 import { fill, I18N } from "@/lib/i18n";
 import { adviceLink, readAdviceLink } from "@/lib/links";
-import type { Lang, MandiCropsResponse, MandiPageResponse } from "@/lib/types";
+import type { AdviceResponse, Lang, MandiAnalysisResponse, MandiCropsResponse, MandiPageResponse } from "@/lib/types";
+import analysis from "./fixtures/mandi_analysis.json";
+import cachedAnalysis from "./fixtures/mandi_analysis_cached.json";
 import crops from "./fixtures/mandi_crops.json";
 import found from "./fixtures/mandi_found.json";
 import latest from "./fixtures/mandi_latest.json";
@@ -145,5 +148,60 @@ describe("advice page after the location picker moved", () => {
     expect(html).toContain(`aria-label="${I18N.en.useLocation}"`);
     expect(html).toContain(`<label for="location"`);
     expect(html).toMatch(/<a aria-current="page"[^>]*href="\/advice"/);
+  });
+});
+
+describe("price analysis", () => {
+  const a = analysis as unknown as MandiAnalysisResponse;
+  const renderA = (r: MandiAnalysisResponse, lang: Lang = "en") => renderToStaticMarkup(<AnalysisView res={r} L={I18N[lang]} />);
+
+  it("shows the labelled rule-based analysis with cited sections", () => {
+    const html = renderA(a);
+    expect(a.generated_by).toBe("rules-fallback");
+    expect(html).toContain(`data-generated-by="rules-fallback"`);
+    expect(html).toContain(I18N.en.fallbackNote);
+    expect(html).toContain(a.analysis.summary.replace(/'/g, "&#x27;"));
+    expect((html.match(/data-analysis-section/g) ?? []).length).toBe(a.analysis.sections.length);
+    expect(a.analysis.sections.map((s) => s.title)).toEqual(["Price at the nearest market", "Other markets nearby", "Weather and timing"]);
+    const modal = a.data_points.find((p) => p.id === "mandi_modal_price")!;
+    expect(html).toContain(modal.label);  // a citation chip for the cited price
+    expect(html).toContain("Estimate, not a harvest recommendation");
+    for (const s of a.sources) expect(html).toContain(s.name);
+    expect(html).not.toContain("data-unverified");
+    expect(html).not.toContain("data-cached");
+  });
+
+  it("marks a repeat within 30 minutes as a saved analysis", () => {
+    const c = cachedAnalysis as unknown as MandiAnalysisResponse;
+    expect(c.served_from_cache).toBe(true);
+    expect(renderA(c, "kn")).toContain("data-cached");
+  });
+
+  it("warns about numbers that could not be matched to the data", () => {
+    const html = renderA({ ...a, unverified_numbers: ["4100"] });
+    expect(html).toContain("data-unverified");
+    expect(html).toContain(`${I18N.en.unverified} 4100`);
+  });
+
+  it("asks for nothing until Analyse is tapped", () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+    try {
+      const html = renderToStaticMarkup(<MandiAnalysisPanel res={res(found)} lang="kn" L={I18N.kn} />);
+      expect(html).toContain(I18N.kn.analysisHint);
+      expect(html).toContain(I18N.kn.analyse);
+      expect(html).toContain(I18N.kn.analysisIntro);
+      expect(html).not.toContain("data-analysis-section");
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("is not part of the advice page", async () => {
+    const { default: AdviceResult } = await import("@/components/AdviceResult");
+    const advice = (await import("./fixtures/advice_dharwad.json")).default as unknown as AdviceResponse;
+    const html = renderToStaticMarkup(<AdviceResult res={advice} L={I18N.en} />);
+    expect(html).not.toContain("mandi-analysis");
+    expect(html).not.toContain(I18N.en.analyse);
   });
 });

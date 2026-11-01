@@ -263,3 +263,29 @@ export interface MandiPageResponse extends MandiResult {
   source: SourceView;
   attribution: string;
 }
+
+export interface MandiAnalysisSection {
+  title: string;
+  text: string;
+  evidence: string[];
+}
+
+export interface MandiAnalysisResponse {
+  request_id: string;
+  generated_at: string;
+  elapsed_ms: number;
+  language: Lang;
+  commodity: string;
+  labels: LangLabels;
+  location: { name: string; district: string | null; lat: number; lon: number };
+  mandi: MandiResult;
+  analysis: { summary: string; sections: MandiAnalysisSection[]; missing_data: string[]; disclaimer: string };
+  generated_by: string; // a Gemini model name, or "rules-fallback"
+  llm_error: string | null;
+  unverified_numbers: string[];
+  data_points: DataPoint[];
+  rules: Rule[];
+  sources: SourceView[];
+  warnings: string[];
+  served_from_cache: boolean; // a repeat within 30 minutes
+}

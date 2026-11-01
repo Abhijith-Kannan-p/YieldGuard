@@ -1,6 +1,7 @@
 import type { BrowserForecast } from "./forecastClient";
 import type {
-  AdviceResponse, FollowupResponse, MandiCropsResponse, MandiPageResponse, PlaceSuggestion, TodaySummary,
+  AdviceResponse, FollowupResponse, Lang, MandiAnalysisResponse, MandiCropsResponse, MandiPageResponse, PlaceSuggestion,
+  TodaySummary,
 } from "./types";
 
 // In production the page is served by the FastAPI backend, so API calls are same-origin.
@@ -88,6 +89,18 @@ export function fetchMandi(
   }
   if (where.location) p.set("location", where.location);
   return getJson<MandiPageResponse>(`/api/mandi?${p}`, signal);
+}
+
+/** The Mandi page analysis (only when the farmer taps Analyse); the forecast is fetched in the browser first. */
+export function postMandiAnalysis(
+  body: { crop: string; location: string; lat: number; lon: number; lang: Lang; forecast: BrowserForecast },
+  signal: AbortSignal,
+): Promise<MandiAnalysisResponse> {
+  return getJson<MandiAnalysisResponse>("/api/mandi/analysis", signal, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 export async function searchPlaces(q: string, signal: AbortSignal): Promise<PlaceSuggestion[]> {

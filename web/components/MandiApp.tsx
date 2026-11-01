@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import AttributionFooter from "./AttributionFooter";
 import LocationPicker, { type PickedPlace } from "./LocationPicker";
+import MandiAnalysisPanel from "./MandiAnalysis";
 import MandiView, { SourceLine } from "./MandiView";
 import SiteNav from "./SiteNav";
 import { ApiError, fetchMandi, fetchMandiCrops, REQUEST_TIMEOUT_MS } from "@/lib/api";
@@ -169,6 +170,15 @@ export default function MandiApp() {
             </div>
           )}
           {prices.s === "ok" && <MandiView res={prices.d} lang={lang} L={L} />}
+          {/* Only when there is a price; a new crop, place or language starts again from the button. */}
+          {prices.s === "ok" && (prices.d.status === "found" || prices.d.status === "latest") && (
+            <MandiAnalysisPanel
+              key={`${prices.d.commodity}|${prices.d.location.lat},${prices.d.location.lon}|${lang}`}
+              res={prices.d}
+              lang={lang}
+              L={L}
+            />
+          )}
         </section>
       </main>
 

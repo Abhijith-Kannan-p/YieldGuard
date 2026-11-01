@@ -1,0 +1,356 @@
+{
+ "request_id": "a751d52e7852",
+ "generated_at": "2026-11-01T22:57:50+05:30",
+ "elapsed_ms": 3,
+ "language": "en",
+ "commodity": "Maize",
+ "labels": {
+  "en": "Maize",
+  "hi": "मक्का",
+  "kn": "ಮೆಕ್ಕೆಜೋಳ"
+ },
+ "location": {
+  "name": "Dharwad",
+  "district": "Dharwad district",
+  "lat": 15.46005,
+  "lon": 75.00778
+ },
+ "mandi": {
+  "status": "found",
+  "crop": "maize",
+  "crop_word": "Maize",
+  "commodity": "Maize",
+  "today": "2026-11-01",
+  "snapshot_date": "2026-11-01",
+  "market": {
+   "name": "Ranebennur APMC",
+   "district": "Haveri",
+   "distance_km": 114.6,
+   "lat": 14.62239,
+   "lon": 75.62951,
+   "located_as": "Ranebennur"
+  },
+  "records": [
+   {
+    "state": "Karnataka",
+    "district": "Haveri",
+    "market": "Ranebennur APMC",
+    "commodity": "Maize",
+    "variety": "Local",
+    "arrival_date": "2026-11-01",
+    "min_price": 2910.0,
+    "max_price": 3540.0,
+    "modal_price": 3202.0
+   }
+  ],
+  "nearby": [],
+  "nearest_beyond": null,
+  "markets_reporting": 1,
+  "markets_not_located": 0,
+  "max_distance_km": 125.0,
+  "note": null
+ },
+ "analysis": {
+  "summary": "Automatic summary (language model unavailable): Maize at Ranebennur APMC (114.6 km away): Rs 3202 per quintal (min 2910, max 3540), arrival date 2026-11-01. At Ranebennur APMC the price ranged from Rs 2910 to Rs 3540 per quintal, a spread of Rs 630.",
+  "sections": [
+   {
+    "title": "Price at the nearest market",
+    "text": "Maize at Ranebennur APMC (114.6 km away): Rs 3202 per quintal (min 2910, max 3540), arrival date 2026-11-01. At Ranebennur APMC the price ranged from Rs 2910 to Rs 3540 per quintal, a spread of Rs 630.",
+    "evidence": [
+     "mandi_modal_price",
+     "mandi_min_price",
+     "mandi_max_price",
+     "mandi_market",
+     "mandi_distance_km",
+     "mandi_arrival_date",
+     "mandi_spread"
+    ]
+   },
+   {
+    "title": "Other markets nearby",
+    "text": "No other market within 125 km reports this crop.",
+    "evidence": []
+   },
+   {
+    "title": "Weather and timing",
+    "text": "Heavy rain is likely in the next 24 hours (up to 88% chance, 10.1 mm total). Postpone field work and check field drainage. Estimate, not a harvest recommendation: forecast days that look dry (rain at most 2 mm, maximum below 35 °C): 03/11, 05/11.",
+    "evidence": [
+     "max_rain_prob_24h",
+     "rain_total_24h",
+     "dry_day_1",
+     "dry_day_2"
+    ]
+   }
+  ],
+  "missing_data": [],
+  "disclaimer": "Prices change daily. Confirm with the market or your local agriculture officer before selling."
+ },
+ "generated_by": "rules-fallback",
+ "llm_error": "language model not configured (GEMINI_API_KEY is not set)",
+ "unverified_numbers": [],
+ "data_points": [
+  {
+   "id": "loc_lat",
+   "label": "Latitude",
+   "value": 15.46005,
+   "unit": "°",
+   "valid_time": null,
+   "source_id": "geocode",
+   "source": "Open-Meteo Geocoding API",
+   "fetched_at": "2026-11-01T10:00:00+05:30",
+   "cached": false
+  },
+  {
+   "id": "loc_lon",
+   "label": "Longitude",
+   "value": 75.00778,
+   "unit": "°",
+   "valid_time": null,
+   "source_id": "geocode",
+   "source": "Open-Meteo Geocoding API",
+   "fetched_at": "2026-11-01T10:00:00+05:30",
+   "cached": false
+  },
+  {
+   "id": "mandi_market",
+   "label": "Nearest market reporting this crop",
+   "value": "Ranebennur APMC (Haveri)",
+   "unit": "",
+   "valid_time": null,
+   "source_id": "mandi",
+   "source": "Agmarknet mandi prices (data.gov.in)",
+   "fetched_at": "2026-11-01T23:08:26+05:30",
+   "cached": false
+  },
+  {
+   "id": "mandi_distance_km",
+   "label": "Distance to Ranebennur APMC (Haveri)",
+   "value": 114.6,
+   "unit": "km",
+   "valid_time": null,
+   "source_id": "mandi",
+   "source": "Agmarknet mandi prices (data.gov.in)",
+   "fetched_at": "2026-11-01T23:08:26+05:30",
+   "cached": false
+  },
+  {
+   "id": "mandi_modal_price",
+   "label": "Modal price, Maize, Local, Ranebennur APMC",
+   "value": 3202.0,
+   "unit": "Rs/quintal",
+   "valid_time": "2026-11-01",
+   "source_id": "mandi",
+   "source": "Agmarknet mandi prices (data.gov.in)",
+   "fetched_at": "2026-11-01T23:08:26+05:30",
+   "cached": false
+  },
+  {
+   "id": "mandi_min_price",
+   "label": "Minimum price, Maize, Local, Ranebennur APMC",
+   "value": 2910.0,
+   "unit": "Rs/quintal",
+   "valid_time": "2026-11-01",
+   "source_id": "mandi",
+   "source": "Agmarknet mandi prices (data.gov.in)",
+   "fetched_at": "2026-11-01T23:08:26+05:30",
+   "cached": false
+  },
+  {
+   "id": "mandi_max_price",
+   "label": "Maximum price, Maize, Local, Ranebennur APMC",
+   "value": 3540.0,
+   "unit": "Rs/quintal",
+   "valid_time": "2026-11-01",
+   "source_id": "mandi",
+   "source": "Agmarknet mandi prices (data.gov.in)",
+   "fetched_at": "2026-11-01T23:08:26+05:30",
+   "cached": false
+  },
+  {
+   "id": "mandi_arrival_date",
+   "label": "Arrival date of these prices",
+   "value": "2026-11-01",
+   "unit": "",
+   "valid_time": "2026-11-01",
+   "source_id": "mandi",
+   "source": "Agmarknet mandi prices (data.gov.in)",
+   "fetched_at": "2026-11-01T23:08:26+05:30",
+   "cached": false
+  },
+  {
+   "id": "mandi_spread",
+   "label": "Price spread at Ranebennur APMC (max minus min)",
+   "value": 630.0,
+   "unit": "Rs/quintal",
+   "valid_time": "2026-11-01",
+   "source_id": "mandi",
+   "source": "Agmarknet mandi prices (data.gov.in)",
+   "fetched_at": "2026-11-01T23:08:26+05:30",
+   "cached": false
+  },
+  {
+   "id": "max_rain_prob_24h",
+   "label": "Highest rain probability, next 24 h",
+   "value": 88,
+   "unit": "%",
+   "valid_time": "2026-11-02T17:00",
+   "source_id": "forecast",
+   "source": "Open-Meteo (fetched in your browser)",
+   "fetched_at": "2026-11-01T22:57:50+05:30",
+   "cached": false
+  },
+  {
+   "id": "rain_total_24h",
+   "label": "Total forecast rain, next 24 h",
+   "value": 10.1,
+   "unit": "mm",
+   "valid_time": "2026-11-01T22:00 to 2026-11-02T21:00",
+   "source_id": "forecast",
+   "source": "Open-Meteo (fetched in your browser)",
+   "fetched_at": "2026-11-01T22:57:50+05:30",
+   "cached": false
+  },
+  {
+   "id": "tmax_peak",
+   "label": "Highest daily maximum temperature, next days",
+   "value": 31.1,
+   "unit": "°C",
+   "valid_time": "2026-11-07",
+   "source_id": "forecast",
+   "source": "Open-Meteo (fetched in your browser)",
+   "fetched_at": "2026-11-01T22:57:50+05:30",
+   "cached": false
+  },
+  {
+   "id": "dry_day_1",
+   "label": "Dry day 3 Nov: rain mm, maximum °C",
+   "value": "rain 2.0 mm, maximum 30.8 °C",
+   "unit": "",
+   "valid_time": "2026-11-03",
+   "source_id": "forecast",
+   "source": "Open-Meteo (fetched in your browser)",
+   "fetched_at": "2026-11-01T22:57:50+05:30",
+   "cached": false
+  },
+  {
+   "id": "dry_day_2",
+   "label": "Dry day 5 Nov: rain mm, maximum °C",
+   "value": "rain 0.9 mm, maximum 28.8 °C",
+   "unit": "",
+   "valid_time": "2026-11-05",
+   "source_id": "forecast",
+   "source": "Open-Meteo (fetched in your browser)",
+   "fetched_at": "2026-11-01T22:57:50+05:30",
+   "cached": false
+  }
+ ],
+ "rules": [
+  {
+   "id": "mandi_price",
+   "name": "Mandi price (nearest market)",
+   "status": "found",
+   "summary": "Maize: modal price Rs 3202 per quintal (min Rs 2910, max Rs 3540) at Ranebennur APMC (Haveri), 114.6 km away; arrival date 2026-11-01, today. Prices are as reported by the market, in Rs per quintal.",
+   "thresholds": {
+    "max_distance_km": 125.0,
+    "snapshot_date": "2026-11-01"
+   },
+   "evidence": [
+    "mandi_market",
+    "mandi_distance_km",
+    "mandi_modal_price",
+    "mandi_min_price",
+    "mandi_max_price",
+    "mandi_arrival_date"
+   ]
+  },
+  {
+   "id": "mandi_compare",
+   "name": "Nearby markets and price spread",
+   "status": "none",
+   "summary": "No other market within 125 km reports this crop, so there is nothing to compare.",
+   "thresholds": {
+    "max_distance_km": 125.0
+   },
+   "evidence": [
+    "mandi_spread"
+   ]
+  },
+  {
+   "id": "heavy_rain",
+   "name": "Heavy-rain warning",
+   "status": "warning",
+   "summary": "Heavy-rain warning: postpone field work and check drainage (warn if rain probability > 70% or 24 h total > 40 mm).",
+   "thresholds": {
+    "prob_pct": 70.0,
+    "total_mm": 40.0,
+    "lookahead_h": 24
+   },
+   "evidence": [
+    "max_rain_prob_24h",
+    "rain_total_24h"
+   ]
+  },
+  {
+   "id": "heat",
+   "name": "Heat stress",
+   "status": "ok",
+   "summary": "No day above 35 °C from 2026-11-01 to 2026-11-07 (highest 31.1 °C on 2026-11-07).",
+   "thresholds": {
+    "tmax_c": 35.0,
+    "days": 7
+   },
+   "evidence": [
+    "tmax_peak"
+   ]
+  },
+  {
+   "id": "dry_days",
+   "name": "Dry days for harvest and transport (estimate)",
+   "status": "found",
+   "summary": "Estimate only, not a harvest recommendation: 2 of 7 forecast days from 2026-11-01 to 2026-11-07 look dry (rain at most 2 mm and maximum below 35 °C): 2026-11-03, 2026-11-05.",
+   "thresholds": {
+    "max_rain_mm": 2.0,
+    "tmax_below_c": 35.0,
+    "days": 7
+   },
+   "evidence": [
+    "dry_day_1",
+    "dry_day_2"
+   ]
+  }
+ ],
+ "sources": [
+  {
+   "id": "mandi",
+   "name": "Agmarknet mandi prices (data.gov.in)",
+   "url": "https://api.data.gov.in/resource/9ef84268-d588-465a-a308-a864a43d0070",
+   "status": "ok",
+   "fetched_at": "2026-11-01T23:08:26+05:30",
+   "cached": false,
+   "stale": false,
+   "fallback_for": null,
+   "note": null,
+   "age_minutes": 0,
+   "error": null,
+   "attribution": "Mandi prices: Agmarknet via data.gov.in (Government Open Data License - India)"
+  },
+  {
+   "id": "forecast",
+   "name": "Open-Meteo (fetched in your browser)",
+   "url": "https://api.open-meteo.com/v1/forecast",
+   "status": "ok",
+   "fetched_at": "2026-11-01T22:57:50+05:30",
+   "cached": false,
+   "stale": false,
+   "fallback_for": null,
+   "note": null,
+   "age_minutes": 0,
+   "error": null,
+   "attribution": "Weather data by Open-Meteo.com (CC BY 4.0)"
+  }
+ ],
+ "warnings": [
+  "Language model unavailable (language model not configured (GEMINI_API_KEY is not set)); showing a rule-based summary."
+ ],
+ "served_from_cache": false
+}
